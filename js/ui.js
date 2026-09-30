@@ -49,7 +49,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       cx.scale(2, 2);
       cx.translate(29, 33);
       TD.drawTower(cx, def, { angle: -Math.PI / 5 });
-      card.addEventListener('click', () => UI.selectPlacing(UI.placing === def ? null : def));
+      card.addEventListener('click', () => { TD.Sound.play('click'); UI.selectPlacing(UI.placing === def ? null : def); });
       list.appendChild(card);
     });
   };
@@ -157,7 +157,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
   UI.enemyOpen = () => !$('enemyModal').hidden;
 
-  const STAT_COLORS = { sta: '#ff7a64', str: '#ffb454', spd: '#7ad1ff', acc: '#c78bff', tech: '#ffd24a' };
+  const STAT_COLORS = { sta: '#ff7a64', str: '#ffb454', spd: '#7ad1ff', tech: '#ffd24a' };
 
   function renderCard(full) {
     const e = cardEnemy;
@@ -213,7 +213,6 @@ var TD = globalThis.TD || (globalThis.TD = {});
             ${statRow('sta', `→ ${e.hpMax} здоровья`)}
             ${statRow('str', `→ ${st.str} урона замку`)}
             ${statRow('spd', `→ ${fmt(spd, 2)} кл/с`)}
-            ${statRow('acc', '')}
             ${statRow('tech', `перков: ${e.perks.length}`)}
           </div>
           <h3 class="ec-h">Перки</h3>

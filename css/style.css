@@ -96,6 +96,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .speed button { border: 0; background: none; height: 34px; min-width: 38px; border-radius: 9px; font-size: 11px; color: var(--muted); letter-spacing: -2px; }
 .speed button.on { background: linear-gradient(180deg, #4a3a27, #33271b); color: var(--gold-2); box-shadow: 0 0 0 1px var(--line-strong) inset; }
 .btn-ghost { height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); color: var(--muted); font-size: 14px; }
+.btn-icon { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); font-size: 17px; }
+.btn-icon:hover { border-color: var(--line-strong); }
+.btn-icon.off { opacity: .5; filter: grayscale(1); }
 .btn-ghost:hover { color: var(--gold-2); border-color: var(--line-strong); }
 
 /* ================= STAGE ================= */

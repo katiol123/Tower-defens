@@ -80,20 +80,25 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (!w.inside) return;
     if (UI.placing) {
       const def = UI.placing;
-      if (game.gold < def.price) { UI.banner('Не хватает золота', `${def.name} стоит ${def.price}`, 1400); return; }
-      if (!game.canBuild(w.tx, w.ty)) return;
+      if (game.gold < def.price) { TD.Sound.play('deny'); UI.banner('Не хватает золота', `${def.name} стоит ${def.price}`, 1400); return; }
+      if (!game.canBuild(w.tx, w.ty)) { TD.Sound.play('deny'); return; }
       game.addTower(def, w.tx, w.ty);
       // Shift — продолжить ставить такие же вышки.
       if (!ev.shiftKey || game.gold < def.price) UI.selectPlacing(null);
       return;
     }
     const e = enemyAt(w);
-    if (e) { UI.openEnemy(e); return; }
+    if (e) { TD.Sound.play('click'); UI.openEnemy(e); return; }
     const t = game.towerAt(w.tx, w.ty);
+    if (t) TD.Sound.play('click');
     UI.selectTower(t || null, view);
   });
 
-  $('shopTab').addEventListener('click', () => { UI.toggleShop(); resize(); });
+  $('shopTab').addEventListener('click', () => { TD.Sound.play('whoosh'); UI.toggleShop(); resize(); });
+  const soundBtn = $('soundBtn');
+  const syncSound = () => { soundBtn.textContent = TD.Sound.isMuted() ? '🔇' : '🔊'; soundBtn.classList.toggle('off', TD.Sound.isMuted()); };
+  soundBtn.addEventListener('click', () => { TD.Sound.toggle(); syncSound(); });
+  syncSound();
   $('waveBtn').addEventListener('click', () => { game.startWave(); });
   $('newMapBtn').addEventListener('click', () => TD.newGame());
   $('enemyModal').addEventListener('click', ev => { if (ev.target.hasAttribute('data-close')) UI.closeEnemy(); });
@@ -115,8 +120,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
       setSpeed(speed === 0 ? prevSpeed : 0);
     } else if (ev.key === 'Tab') {
       ev.preventDefault();
+      TD.Sound.play('whoosh');
       UI.toggleShop();
       resize();
+    } else if (ev.key === 'm' || ev.key === 'M' || ev.key === 'ь' || ev.key === 'Ь') {
+      TD.Sound.toggle(); syncSound();
     } else if (/^[1-4]$/.test(ev.key)) {
       const def = TD.TOWERS[+ev.key - 1];
       UI.selectPlacing(UI.placing === def ? null : def);
@@ -132,6 +140,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       let steps = 0;
       while (acc >= TD.DT && steps < 12) { game.update(TD.DT); acc -= TD.DT; steps++; }
       if (steps >= 12) acc = 0;
+      TD.Sound.handleEvents(game, sp);
       TD.consumeEvents(game, UI);
       UI.castleHitT = Math.max(0, UI.castleHitT - dt);
       TD.renderFrame(ctx, game, view, UI, sp ? dt * sp : 0);

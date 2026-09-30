@@ -75,7 +75,6 @@ var TD = globalThis.TD || (globalThis.TD = {});
       sta: rng.int(2, 6) + (opts.staBonus || 0),
       str: rng.int(2, 5),
       spd: rng.int(7, 13),
-      acc: rng.int(3, 12),
     };
     Object.assign(base, opts.stats || {});
     const perks = opts.perks || TD.rollPerks(rng, opts.perkBoost || 0);
