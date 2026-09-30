@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Крепость на распутье</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Yeseva+One&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ============ ВЕРХНЯЯ ПАНЕЛЬ ============ -->
+    <header class="hud">
+      <div class="brand">
+        <div class="brand-mark">♜</div>
+        <div>
+          <div class="brand-kicker">Уровень 1 · испытание</div>
+          <h1>Крепость на распутье</h1>
+        </div>
+      </div>
+
+      <div class="hud-stats">
+        <div class="stat castle-stat" title="Прочность замка. Каждый дошедший гоблин отнимает столько, сколько у него силы.">
+          <span class="stat-ico">♜</span>
+          <div class="castle-bar"><i id="castleFill"></i><b id="castleVal">100</b></div>
+        </div>
+        <div class="stat gold-stat" title="Золото"><span class="coin"></span><b id="goldVal">0</b></div>
+        <div class="stat wave-stat" title="Волна"><span class="stat-ico">⚑</span><b id="waveVal">0 / 10</b></div>
+      </div>
+
+      <div class="hud-actions">
+        <button class="btn-wave" id="waveBtn"><span class="wb-main">⚔ В бой!</span><small id="waveHint">Волна 1</small></button>
+        <div class="speed" id="speed">
+          <button data-speed="0" title="Пауза (пробел)">❚❚</button>
+          <button data-speed="1" class="on" title="Обычная скорость">▶</button>
+          <button data-speed="2" title="×2">▶▶</button>
+          <button data-speed="3" title="×3">▶▶▶</button>
+        </div>
+        <button class="btn-ghost" id="newMapBtn" title="Сгенерировать новую карту">⟳ Новая карта</button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <!-- ============ ВРАГИ НА ПОЛЕ ============ -->
+      <aside class="roster" id="roster">
+        <div class="roster-head">
+          <span>Враги на поле</span>
+          <b id="rosterCount">0</b>
+        </div>
+        <div class="roster-list" id="rosterList"></div>
+        <div class="roster-empty" id="rosterEmpty">Тихо… пока.<br><small>Гоблины появятся здесь, как только выйдут на тропу. Нажмите на любого, чтобы открыть его карту.</small></div>
+      </aside>
+
+      <!-- ============ ПОЛЕ ============ -->
+      <div class="field" id="field">
+        <canvas id="cv"></canvas>
+        <div class="banner" id="banner"></div>
+        <div class="tower-pop" id="towerPop" hidden></div>
+        <div class="seed" id="seedLbl"></div>
+
+        <!-- ============ МАГАЗИН ============ -->
+        <div class="shop" id="shop">
+          <button class="shop-tab" id="shopTab" title="Показать / спрятать магазин (Tab)">
+            <span class="shop-tab-arrow">❯</span><span class="shop-tab-txt">Арсенал</span>
+          </button>
+          <div class="shop-body">
+            <div class="shop-head">
+              <div class="shop-kicker">Арсенал крепости</div>
+              <div class="shop-title">Вышки</div>
+            </div>
+            <div class="shop-list" id="shopList"></div>
+            <div class="shop-foot">ЛКМ — поставить · ПКМ / Esc — отмена · 1–4 — выбрать</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============ КАРТА ВРАГА ============ -->
+    <div class="modal" id="enemyModal" hidden>
+      <div class="modal-back" data-close></div>
+      <div class="ecard" id="ecard"></div>
+    </div>
+
+    <!-- ============ КОНЕЦ ИГРЫ ============ -->
+    <div class="modal" id="endModal" hidden>
+      <div class="modal-back"></div>
+      <div class="endcard" id="endcard"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/masks.js"></script>
+  <script src="js/mapgen.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
