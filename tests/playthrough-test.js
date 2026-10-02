@@ -26,7 +26,9 @@ function buy(game, def) {
 
 function play(seed, order) {
   const game = new TD.Game(seed);
-  let k = 0;
+  let k = 0, bossKilled = false;
+  const em = game.emit.bind(game);
+  game.emit = ev => { if (ev.type === 'death' && ev.e.boss) bossKilled = true; em(ev); };
   while (game.phase !== 'won' && game.phase !== 'lost') {
     if (game.phase === 'build') {
       for (let guard = 0; guard < 20; guard++) {
@@ -39,7 +41,7 @@ function play(seed, order) {
     }
     game.update(TD.DT);
   }
-  return { won: game.phase === 'won', wave: game.wave, hp: game.castleHp, towers: game.towers.length, kills: game.stats.kills };
+  return { bossKilled, won: game.phase === 'won', wave: game.wave, hp: game.castleHp, towers: game.towers.length, kills: game.stats.kills };
 }
 
 const strategies = {
@@ -50,12 +52,13 @@ const strategies = {
   'только Пасти': ['dragon'],
 };
 for (const [name, order] of Object.entries(strategies)) {
-  let wins = 0, hpSum = 0, waveSum = 0;
+  let wins = 0, hpSum = 0, waveSum = 0, bosses = 0;
   for (let g = 0; g < GAMES; g++) {
     const r = play(5000 + g, order);
     if (r.won) { wins++; hpSum += r.hp; }
     waveSum += r.wave;
+    if (r.bossKilled) bosses++;
   }
   console.log(`${name.padEnd(16)} побед ${String(wins).padStart(3)}/${GAMES}` +
-    `, средн. замок у победителей ${wins ? (hpSum / wins).toFixed(0) : '—'}, средн. волна ${(waveSum / GAMES).toFixed(1)}`);
+    `, средн. замок у победителей ${wins ? (hpSum / wins).toFixed(0) : '—'}, средн. волна ${(waveSum / GAMES).toFixed(1)}, босс убит ${bosses}`);
 }

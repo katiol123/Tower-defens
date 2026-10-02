@@ -8,6 +8,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   // ---------------- Изображения гоблина ----------------
   const IMG = {};
   const WHITE = {};
+  const RED = {};
   TD.loadSprites = function () {
     const jobs = [];
     for (const sp in TD.SPRITES) for (const v of ['front', 'side', 'back']) jobs.push({ sp, v });
@@ -24,6 +25,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
         x.fillStyle = '#fff';
         x.fillRect(0, 0, c.width, c.height);
         (WHITE[sp] = WHITE[sp] || {})[v] = c;
+        // Красный силуэт для свечения ярости.
+        const r = document.createElement('canvas');
+        r.width = im.width; r.height = im.height;
+        const rx = r.getContext('2d');
+        rx.drawImage(im, 0, 0);
+        rx.globalCompositeOperation = 'source-in';
+        rx.fillStyle = '#ff2a10';
+        rx.fillRect(0, 0, r.width, r.height);
+        (RED[sp] = RED[sp] || {})[v] = r;
         res();
       };
       im.onerror = res;
@@ -486,7 +496,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   function drawGoblin(ctx, e, o) {
     const b = TD.enemyBox(e);
     const img = imgOf(e);
-    shadow(ctx, e.x, e.y + 13 * e.size, b.W * (e.view === 'side' ? 0.36 : 0.28) - e.bob * 0.6, 4.5 * e.size, 0.32);
+    shadow(ctx, e.x, e.y + 13 * e.size, Math.max(4, b.W * (e.view === 'side' ? 0.36 : 0.28) - Math.min(e.bob, 6) * 0.6), 4.5 * e.size, 0.32);
     if (o && o.selected) {
       const pulse = 0.5 + Math.sin(o.t * 6) * 0.5;
       ctx.save();
@@ -496,25 +506,46 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.restore();
     }
     if (e.frenzy) {
-      // Аура «Грибного безумия»
-      const k = 0.75 + Math.sin(o.t * 9 + e.id) * 0.25;
-      const g = ctx.createRadialGradient(b.cx, b.cy, 4, b.cx, b.cy, b.H * 0.62);
-      g.addColorStop(0, `rgba(255,70,40,${0.55 * k})`);
-      g.addColorStop(0.6, `rgba(220,40,140,${0.18 * k})`);
+      // Аура «Грибного безумия»: пульсирующее пламя под ногами и вокруг тела
+      const k = 0.7 + Math.sin(o.t * 10 + e.id) * 0.3;
+      const R = b.H * 0.85;
+      const g = ctx.createRadialGradient(b.cx, b.cy, 4, b.cx, b.cy, R);
+      g.addColorStop(0, `rgba(255,80,30,${0.7 * k})`);
+      g.addColorStop(0.5, `rgba(235,30,90,${0.35 * k})`);
       g.addColorStop(1, 'rgba(200,0,80,0)');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(b.cx, b.cy, b.H * 0.62, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.cx, b.cy, R, 0, TAU); ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,90,40,${0.8 * k})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(e.x, e.y + 13 * e.size, b.W * 0.42 + k * 4, 8 + k * 2, 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+      if (Math.random() < 0.45) spawnFx({ t: 'ember', x: b.cx + (Math.random() - 0.5) * b.W * 0.6, y: b.cy + b.H * (Math.random() * 0.4), vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 40, life: 0.6 });
     }
     if (!img) return;
     ctx.save();
     ctx.translate(b.cx, b.cy);
     if (e.flip) ctx.scale(-1, 1);
+    if (e.frenzy && RED[e.sprite]) {
+      // Красное свечение по контуру
+      const k = 0.6 + Math.sin(o.t * 10 + e.id) * 0.3;
+      ctx.save();
+      ctx.globalAlpha = k;
+      ctx.filter = 'blur(3px)';
+      ctx.drawImage(RED[e.sprite][e.view], -b.W * 0.56, -b.H * 0.56, b.W * 1.12, b.H * 1.12);
+      ctx.restore();
+    }
     ctx.drawImage(img, -b.W / 2, -b.H / 2, b.W, b.H);
+    if (e.frenzy && RED[e.sprite]) {
+      ctx.globalAlpha = 0.18 + Math.sin(o.t * 10 + e.id) * 0.08;
+      ctx.drawImage(RED[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
+      ctx.globalAlpha = 1;
+    }
     if (e.hitFlash > 0) {
       ctx.globalAlpha = Math.min(1, e.hitFlash * 7) * 0.75;
       ctx.drawImage(WHITE[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
     }
     ctx.restore();
+    if (e.stupor > 0) drawStupor(ctx, b, e, o.t);
     // Полоска здоровья
     if (e.hp < e.hpMax) {
       const w = 30 * Math.max(1, e.size), x = e.x - w / 2, y = b.cy - b.H / 2 - 6;
@@ -523,6 +554,34 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.fillStyle = f > 0.5 ? '#7fd46a' : f > 0.25 ? '#f0b93a' : '#ff5a44';
       rr(ctx, x, y, w * f, 3, 1.5); ctx.fill();
     }
+  }
+
+  // Ступор: кружащиеся звёзды и вопросы над головой
+  function drawStupor(ctx, b, e, t) {
+    const top = b.cy - b.H / 2 + b.H * 0.06;
+    ctx.save();
+    for (let i = 0; i < 5; i++) {
+      const q = t * 2.6 + i / 5 * TAU;
+      const x = b.cx + Math.cos(q) * b.W * 0.32, y = top + Math.sin(q) * 8;
+      ctx.fillStyle = i % 2 ? '#ffe36a' : '#fff6c4';
+      star(ctx, x, y, 6 + (i % 2) * 2, q);
+    }
+    ctx.font = 'bold 22px Philosopher, sans-serif'; ctx.textAlign = 'center';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    const qy = top - 22 + Math.sin(t * 4) * 4;
+    ['?', '?', '…'].forEach((ch, i) => {
+      const x = b.cx + (i - 1) * 20, y = qy + Math.sin(t * 5 + i) * 3;
+      ctx.strokeText(ch, x, y); ctx.fillStyle = '#d7b8ff'; ctx.fillText(ch, x, y);
+    });
+    ctx.restore();
+  }
+  function star(ctx, x, y, r, rot) {
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const a = rot + k / 10 * TAU, rr2 = k % 2 ? r * 0.45 : r;
+      k ? ctx.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2) : ctx.moveTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2);
+    }
+    ctx.closePath(); ctx.fill();
   }
 
   // ---------------- Снаряды ----------------
@@ -589,6 +648,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
         else spawnFx({ t: 'num', x: ev.x + (Math.random() - 0.5) * 12, y: ev.y, v: ev.v, fire: ev.fire, eid: ev.eid, life: ev.fire ? 0.9 : 0.8 });
       } else if (ev.type === 'death') {
         const e = ev.e;
+        if (e.boss) {
+          const b = TD.enemyBox(e);
+          spawnFx({ t: 'ring', x: b.cx, y: b.cy, r: b.H, life: 0.8 });
+          spawnFx({ t: 'flash', x: b.cx, y: b.cy, r: b.H * 0.8, life: 0.5 });
+          for (let i = 0; i < 30; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: b.cx + Math.cos(q) * 20, y: b.cy + Math.sin(q) * 30, vx: Math.cos(q) * 60, vy: Math.sin(q) * 40 - 20, life: 1.2, s: 10 + Math.random() * 10 }); }
+        }
         spawnFx({ t: 'corpse', e: { sprite: e.sprite, height: e.height, view: e.view, flip: e.flip, size: e.size, x: e.x, y: e.y, bob: e.bob }, life: 0.7 });
         spawnFx({ t: 'coin', x: e.x, y: e.y - 30, v: ev.gold, life: 1.0 });
         for (let i = 0; i < 8; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: e.x, y: e.y - 6, vx: Math.cos(q) * 30, vy: Math.sin(q) * 20 - 12, life: 0.6, s: 5 + Math.random() * 5 }); }
@@ -605,6 +670,16 @@ var TD = globalThis.TD || (globalThis.TD = {});
         spawnFx({ t: 'heal', x: ev.e.x, y: ev.e.y, r: ev.r, life: 0.7 });
         for (const h of ev.healed) spawnFx({ t: 'num', x: h.e.x, y: h.e.y - 30, v: h.v, heal: true, life: 0.9 });
         for (let i = 0; i < 8; i++) { const q = Math.random() * TAU, d = Math.random() * ev.r * 0.8; spawnFx({ t: 'spore', x: ev.e.x + Math.cos(q) * d, y: ev.e.y + Math.sin(q) * d * 0.6, vx: 0, vy: -18 - Math.random() * 15, life: 0.9 }); }
+      } else if (ev.type === 'kick') {
+        const e = ev.e, dir = e.x < ev.troll.x ? -1 : 1;
+        spawnFx({ t: 'flyer', x: e.x, y: e.y, noDamp: true, e: { sprite: e.sprite, height: e.height, view: e.view, flip: e.flip, size: e.size, x: e.x, y: e.y, bob: 0 }, vx: dir * (160 + Math.random() * 80), vy: -260 - Math.random() * 80, spin: dir * (10 + Math.random() * 6), life: 1.1 });
+        spawnFx({ t: 'text', x: e.x, y: e.y - 40, s: 'ПИНОК!', col: '#ffd24a', life: 1.0, big: true });
+        for (let i = 0; i < 6; i++) { const q = Math.random() * TAU; spawnFx({ t: 'spark', x: e.x, y: e.y - 14, vx: Math.cos(q) * 120, vy: Math.sin(q) * 120, life: 0.3, col: '#fff2a0' }); }
+      } else if (ev.type === 'nest') {
+        const e = ev.e, b = TD.enemyBox(e);
+        for (let i = 0; i < 10; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: b.cx + Math.cos(q) * b.W * 0.3, y: b.cy - b.H * 0.25 + Math.sin(q) * 10, vx: Math.cos(q) * 30, vy: -20, life: 0.6, s: 5 + Math.random() * 5, light: true }); }
+      } else if (ev.type === 'stupor') {
+        spawnFx({ t: 'text', x: ev.e.x, y: TD.enemyBox(ev.e).cy - TD.enemyBox(ev.e).H / 2 - 30, s: 'Ступор…', col: '#d7b8ff', life: 1.4, big: true });
       } else if (ev.type === 'calm') {
         spawnFx({ t: 'text', x: ev.e.x, y: ev.e.y - 50, s: 'Ярость прошла', col: '#d7b8ff', life: 1.3 });
       } else if (ev.type === 'dismount') {
@@ -621,7 +696,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       f.age += dt;
       if (f.age >= f.life) { fx.splice(i, 1); continue; }
       const k = f.age / f.life;
-      if (f.vx !== undefined) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.94; f.vy *= 0.94; }
+      if (f.vx !== undefined) { f.x += f.vx * dt; f.y += f.vy * dt; if (!f.noDamp) { f.vx *= 0.94; f.vy *= 0.94; } }
       ctx.save();
       if (f.t === 'spark') {
         ctx.globalCompositeOperation = 'lighter';
@@ -661,9 +736,20 @@ var TD = globalThis.TD || (globalThis.TD = {});
         ctx.fillStyle = f.castle ? '#ff6a55' : f.heal ? '#8dff7a' : f.fire ? '#ffb454' : '#fff2d0';
         ctx.fillText(s, f.x, y);
       } else if (f.t === 'text') {
-        ctx.globalAlpha = 1 - k; ctx.font = 'bold 14px Philosopher, sans-serif'; ctx.textAlign = 'center';
+        ctx.globalAlpha = 1 - k; ctx.font = f.big ? 'bold 19px Philosopher, sans-serif' : 'bold 14px Philosopher, sans-serif'; ctx.textAlign = 'center';
         ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(f.s, f.x, f.y - k * 20);
         ctx.fillStyle = f.col; ctx.fillText(f.s, f.x, f.y - k * 20);
+      } else if (f.t === 'flyer') {
+        // Пнутый гоблин улетает, кувыркаясь
+        const e = f.e, b = TD.enemyBox(e), img = imgOf(e);
+        f.vy += 620 * dt;
+        if (img) {
+          ctx.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+          ctx.translate(f.x + (b.cx - e.x), f.y + (b.cy - e.y));
+          ctx.rotate(f.spin * f.age);
+          if (e.flip) ctx.scale(-1, 1);
+          ctx.drawImage(img, -b.W / 2, -b.H / 2, b.W, b.H);
+        }
       } else if (f.t === 'coin') {
         const y = f.y - k * 26;
         ctx.globalAlpha = 1 - k * k;

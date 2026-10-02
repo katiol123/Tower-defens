@@ -298,6 +298,21 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .ec-hp b { position: relative; display: grid; place-items: center; height: 100%; font-size: 12.5px; text-shadow: 0 1px 2px #000; }
 .ec-status { margin-top: 8px; font-size: 12.5px; color: #ffb0a0; padding: 5px 8px; border-radius: 8px; background: rgba(255, 70, 40, .12); border: 1px solid rgba(255, 90, 60, .3); }
 .ec-status b { color: #fff; }
+.ec-boss { color: #2a0d05; background: linear-gradient(90deg, #ff8a5a, #d83a20); padding: 1px 7px; border-radius: 8px; letter-spacing: .12em; }
+.boss-bar {
+  position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: min(520px, 60%); z-index: 2; cursor: pointer;
+  padding: 8px 14px 10px; border-radius: 14px; border: 1px solid rgba(255, 110, 70, .55);
+  background: linear-gradient(180deg, rgba(50, 18, 12, .92), rgba(25, 10, 8, .92));
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .5), 0 0 24px -6px rgba(255, 80, 40, .6);
+  animation: popIn .3s ease;
+}
+.bb-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.bb-skull { color: #ff7a55; }
+.bb-name { font-family: var(--font-title); color: #ffd0b8; font-size: 16px; }
+.bb-state { font-size: 12px; color: #d7b8ff; }
+.bb-val { margin-left: auto; font-size: 13px; color: #fff; }
+.bb-track { height: 12px; border-radius: 6px; background: #2b0c08; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.6); }
+.bb-track i { display: block; height: 100%; width: 100%; background: linear-gradient(180deg, #ff7b61, #a8201a); transition: width .25s; }
 .ec-mini { display: flex; justify-content: space-around; margin-top: 12px; font-size: 12px; color: var(--muted); }
 .ec-mini b { display: block; color: var(--ink); font-size: 15px; }
 

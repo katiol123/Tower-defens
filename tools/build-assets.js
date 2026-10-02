@@ -29,6 +29,11 @@ const UNITS = {
     w: 640, h: 780, x: { front: 210, side: 210, back: 210 }, y: { front: 125, side: 114, back: 132 },
     foot: 770, sideFaces: 'right',
   },
+  troll: {
+    src: v => `assets/source/troll_${v}.png`,
+    w: 620, h: 880, x: { front: 200, side: 200, back: 200 }, y: { front: 75, side: 35, back: 36 },
+    foot: 870, sideFaces: 'right',
+  },
 };
 
 (async () => {

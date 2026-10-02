@@ -101,13 +101,18 @@ var TD = globalThis.TD || (globalThis.TD = {});
     // Вой раненого волка
     // Шелест спор и мягкий перезвон лечения
     spores() { noise(0.45, 0.08, 'bandpass', 3000, 6000, { q: 2 }); [660, 880, 1100].forEach((f, i) => tone('sine', f, f, 0.3, 0.05, { delay: i * 0.06, attack: 0.02 })); },
+    // Тролль: прыжки гоблинов, пинок, ступор, рёв
+    nest() { for (let i = 0; i < 5; i++) tone('square', 300 + i * 70, 700 + i * 90, 0.09, 0.05, { lp: 2200, delay: i * 0.07 }); },
+    kick() { tone('sine', 140, 60, 0.15, 0.6); noise(0.08, 0.3, 'lowpass', 1500, 300); tone('triangle', 500, 1400, 0.35, 0.12, { delay: 0.05 }); },
+    stupor() { tone('sawtooth', 220, 110, 0.9, 0.1, { lp: 700, attack: 0.05 }); tone('sine', 880, 870, 0.5, 0.05, { delay: 0.15 }); tone('sine', 1100, 1090, 0.5, 0.04, { delay: 0.3 }); },
+    roar() { tone('sawtooth', 110, 55, 1.2, 0.3, { lp: 600, attack: 0.08 }); noise(1.0, 0.35, 'lowpass', 500, 120, { attack: 0.08 }); tone('sine', 50, 35, 1.2, 0.6, { attack: 0.05 }); },
     calm() { tone('triangle', 330, 165, 0.6, 0.12, { attack: 0.05 }); },
     dismount() { tone('sawtooth', 520, 880, 0.35, 0.09, { lp: 1600, attack: 0.08 }); tone('sawtooth', 880, 380, 0.7, 0.09, { lp: 1400, delay: 0.35 }); },
     click() { tone('sine', 900, 700, 0.04, 0.08); },
     whoosh() { noise(0.25, 0.14, 'bandpass', 500, 2200, { q: 1.2 }); },
     deny() { tone('square', 220, 180, 0.12, 0.07, { lp: 1200 }); tone('square', 165, 140, 0.16, 0.07, { lp: 1200, delay: 0.1 }); },
   };
-  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200 };
+  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000 };
 
   function play(name) {
     if (!ready() || !SFX[name]) return;
@@ -154,6 +159,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'dismount': play('dismount'); break;
           case 'spores': play('spores'); break;
           case 'calm': play('calm'); break;
+          case 'nest': play('nest'); break;
+          case 'kick': play('kick'); break;
+          case 'stupor': play('stupor'); break;
+          case 'spawn': if (ev.e.boss) play('roar'); break;
         }
       }
     },

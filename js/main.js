@@ -149,6 +149,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         uiTimer = 0.12;
         UI.updateHud(game);
         UI.updateRoster(game);
+        UI.updateBossBar(game);
         UI.tickCard();
         UI.tickTowerPop();
         if (UI.selectedTower && !game.towers.includes(UI.selectedTower)) UI.selectTower(null);
@@ -157,8 +158,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const prev = game._shownPhase;
         game._shownPhase = game.phase;
         if (game.phase === 'wave') {
-          const w = TD.waveDef(game.wave), nW = (w.units.match(/W/g) || []).length;
-          UI.banner(`Волна ${game.wave}`, `${w.count - nW} гоблинов${nW ? ` и ${nW} на лютоволках` : ''} на подходе`, 2000);
+          const w = TD.waveDef(game.wave);
+          const n = ch => (w.units.match(new RegExp(ch, 'g')) || []).length;
+          if (w.boss) UI.banner('Босс: Тролль-мусорщик', 'На нём живут гоблины. Не дайте ему дойти до замка!', 3000);
+          else UI.banner(`Волна ${game.wave}`, [`${n('G')} гоблинов`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
         }
         else if (game.phase === 'build' && prev === 'wave') UI.banner(`Волна ${game.wave} отбита!`, `+${TD.waveDef(game.wave).reward} золота · следующая через 20 с`, 2200);
         else if (game.phase === 'won') setTimeout(() => UI.showEnd(game, true), 900);

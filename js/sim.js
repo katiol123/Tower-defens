@@ -77,21 +77,24 @@ var TD = globalThis.TD || (globalThis.TD = {});
     let tech = 3;
     perks.forEach(p => { tech += TD.PERK_TECH[TD.PERKS[p].type]; });
     st.tech = tech;
-    const hpMax = TD.F.enemyHp(st.sta);
+    const hpMax = U.boss ? TD.F.bossHp(st.sta) : TD.F.enemyHp(st.sta);
     const e = {
       id: nextId++, type,
-      name: opts.name || rng.pick(TD.GOBLIN_FIRST) + ' ' + rng.pick(TD.GOBLIN_LAST),
-      kind: opts.kind || U.name,
+      name: opts.name || (U.boss ? U.name : rng.pick(TD.GOBLIN_FIRST) + ' ' + rng.pick(TD.GOBLIN_LAST)),
+      kind: opts.kind || (U.boss ? 'Босс первого уровня' : U.name),
       sprite: U.sprite, height: U.height,
       base, stats: st, perks,
       hpMax, hp: hpMax,
-      size: 1,
+      boss: !!U.boss,
+      size: perks.includes('giant') ? TD.GIANT.size : 1,
       dist: 0, x: 0, y: 0, dx: 1, dy: 0, view: 'side', flip: false, bob: 0,
       alive: true, age: 0,
       hitsTaken: 0, dmgTaken: 0, hitFlash: 0,
     };
-    e.reward = 2 + Math.round(hpMax / 40);
+    e.reward = U.reward || 2 * (2 + Math.round(hpMax / 40));
     if (perks.includes('spores')) e.sporeT = 0;
+    if (perks.includes('dumb')) { e.dumbT = 0; e.stupor = 0; }
+    if (perks.includes('nest')) e.nestT = 0;
     if (perks.includes('frenzy')) setFrenzy(e, true);
     return e;
   };
@@ -119,6 +122,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   function speedMult(e) {
     let m = 1;
     if (negActive(e, 'coward') && e.hp < e.hpMax / 2) m *= 0.7;
+    if (e.stupor > 0) m = 0;
     return m;
   }
   TD.enemySpeedPx = e => TD.F.enemySpeed(e.stats.spd) * T() * speedMult(e);
@@ -131,7 +135,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       // Боковой ракурс отражается, когда юнит идёт не туда, куда смотрит исходная картинка.
       e.flip = TD.SPRITES[e.sprite].sideFaces === 'left' ? p.dx > 0 : p.dx < 0;
     } else { e.view = p.dy > 0 ? 'front' : 'back'; e.flip = false; }
-    e.bob = Math.abs(Math.sin(e.dist / T() * Math.PI * 1.6)) * 2.5 * e.size;
+    // Прыжок с тролля — высота прыжка входит в bob, поэтому столкновения совпадают с картинкой.
+    if (e.jumpT > 0) e.bob = Math.sin(Math.PI * e.jumpT / e.jumpDur) * e.jumpH;
+    else if (e.stupor > 0) e.bob = 0;
+    else e.bob = Math.abs(Math.sin(e.dist / T() * Math.PI * 1.6)) * 2.5 * Math.min(e.size, 1.3);
   }
   TD.placeEnemy = placeEnemy;
 
@@ -271,6 +278,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   G.damage = function (e, dmg, tower, fire) {
     if (!e.alive) return 0;
+    if (e.frenzy) dmg *= 1 - TD.FRENZY.resist;
     dmg = Math.round(dmg * 10) / 10;
     e.calmT = 0;
     e.hitsTaken++;
@@ -309,6 +317,44 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (add > 0) { e.hp += add; healed.push({ e, v: add }); }
     }
     this.emit({ type: 'spores', e: src, r: R, healed });
+  };
+
+  // «Гоблинское гнездо»: с тролля спрыгивают гоблины — часть впереди, часть позади него.
+  G.nestDrop = function (troll) {
+    const n = TD.NEST.count;
+    const behind = Math.floor(n / 2);
+    const half = TD.enemyBox(troll).W / 2;
+    for (let i = 0; i < n; i++) {
+      const back = i < behind;
+      const off = half * 0.55 + 18 + this.rng() * 40 + (back ? 0 : 6);
+      const g = TD.createUnit('goblin', this.rng, { kind: 'Гоблин из гнезда' });
+      g.pathId = troll.pathId; g.route = troll.route;
+      g.dist = Math.max(0, Math.min(troll.route.length - 1, troll.dist + (back ? -off : off)));
+      g.jumpT = g.jumpDur = 0.45 + this.rng() * 0.2;
+      g.jumpH = 26 + this.rng() * 16;
+      g.kickChecked = false;
+      g.fromX = troll.x; g.fromY = troll.y - troll.height * troll.size * 0.55;
+      placeEnemy(g);
+      this.pending.push(g);
+    }
+    this.emit({ type: 'nest', e: troll });
+  };
+
+  // Гоблин, пробегающий сквозь тролля, один раз проверяется на пинок (25%), если тролль не в ступоре.
+  G.trollKicks = function () {
+    for (const tr of this.enemies) {
+      if (!tr.alive || !tr.perks.includes('nest') || tr.stupor > 0) continue;
+      for (const g of this.enemies) {
+        if (!g.alive || g.type !== 'goblin' || g.kickChecked || g.jumpT > 0) continue;
+        const b = TD.enemyBox(g);
+        if (!TD.hitTest(tr, b.cx, b.cy, 0)) continue;
+        g.kickChecked = true;
+        if (this.rng() >= TD.NEST.kick) continue;
+        g.alive = false; g.kicked = true;
+        this.stats.kicked = (this.stats.kicked || 0) + 1;
+        this.emit({ type: 'kick', e: g, troll: tr });
+      }
+    }
   };
 
   G.explode = function (p, x, y, direct) {
@@ -420,6 +466,24 @@ var TD = globalThis.TD || (globalThis.TD = {});
         e.calmT += dt;
         if (e.calmT >= TD.FRENZY.calm) { setFrenzy(e, false); this.emit({ type: 'calm', e }); }
       }
+      if (e.jumpT > 0) e.jumpT = Math.max(0, e.jumpT - dt);
+      if (e.dumbT !== undefined) {
+        // «Тупоголовый»: проверка раз в 5 с, пока не в ступоре.
+        if (e.stupor > 0) {
+          e.stupor = Math.max(0, e.stupor - dt);
+          if (e.stupor === 0) this.emit({ type: 'stuporEnd', e });
+        } else if (negActive(e, 'dumb')) {
+          e.dumbT += dt;
+          if (e.dumbT >= TD.DUMB.every) {
+            e.dumbT -= TD.DUMB.every;
+            if (this.rng() < TD.DUMB.chance) { e.stupor = TD.DUMB.stun; this.emit({ type: 'stupor', e }); }
+          }
+        }
+      }
+      if (e.nestT !== undefined) {
+        e.nestT += dt;
+        if (e.nestT >= TD.NEST.every) { e.nestT -= TD.NEST.every; this.nestDrop(e); }
+      }
       if (e.sporeT !== undefined) {
         e.sporeT += dt;
         if (e.sporeT >= TD.SPORES.every) { e.sporeT -= TD.SPORES.every; this.spores(e); }
@@ -434,6 +498,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       }
       placeEnemy(e);
     }
+    this.trollKicks();
     for (const t of this.towers) this.updateTower(t, dt);
     for (const p of this.projectiles) if (!p.done) this.updateProjectile(p, dt);
     this.projectiles = this.projectiles.filter(p => !p.done);

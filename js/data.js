@@ -8,14 +8,15 @@ TD.W = TD.TILE * TD.COLS;
 TD.H = TD.TILE * TD.ROWS;
 TD.DT = 1 / 60;          // шаг симуляции, с
 
-TD.CASTLE_HP = 100;
-TD.START_GOLD = 200;
+TD.CASTLE_HP = 20;
+TD.START_GOLD = 500;
 TD.SELL_RATE = 0.7;
 
 // Высота рамки спрайта в мировых пикселях (у гоблина рамка 816×912 исходника, у лютоволка 856×880).
 TD.GOBLIN_H = 50;
 TD.WOLFRIDER_H = 64;
 TD.SHAMAN_H = 54;
+TD.TROLL_H = 76;      // перк «Великан» увеличивает вдвое
 
 // ---------------------------------------------------------------------------
 // Формулы. Все параметры вышек и врагов — целые от 1 до 20.
@@ -25,6 +26,8 @@ TD.F = {
   enemySpeed(s) { return 0.8 * (1 + 1.5 * (s - 1) / 19); },
   // Максимальное здоровье врага.
   enemyHp(sta) { return 40 + 15 * sta; },
+  // Здоровье боссов.
+  bossHp(sta) { return 5000 + 1000 * sta; },
   // Урон одного попадания вышки.
   damage(d) { return Math.round((3 * d + 0.12 * d * d) * 10) / 10; },
   // Выстрелов в секунду.
@@ -113,20 +116,27 @@ TD.towerActual = function (def) {
 
 // ---------------------------------------------------------------------------
 // Перки врагов — строго привязаны к типу юнита (без случайности).
-// type: 'pos' — позитивный (+2 техники), 'rare' — редкий (+5), 'neg' — негативный (−2).
+// type: 'pos' — позитивный (+2 техники), 'rare' — большой позитивный (+5), 'neg' — негативный (−2).
 // ---------------------------------------------------------------------------
 TD.PERKS = {
   coward:   { type: 'neg', icon: '😱', name: 'Трусливый', desc: 'При здоровье ниже половины скорость падает на 30%.' },
   dismount: { type: 'pos', icon: '🐺', name: 'Последний рывок волка', desc: 'При смертельном уроне с шансом 30% волк погибает, а наездник остаётся на его месте — гоблином с 50% здоровья.' },
   blur:     { type: 'pos', icon: '💨', name: 'Серая молния', desc: 'Вышки целятся в него хуже: их точность считается на 3 меньше (но не меньше 1).' },
   spores:   { type: 'pos', icon: '🌿', name: 'Целебные споры', desc: 'Каждые 2 с восстанавливает 30 здоровья себе и союзникам в радиусе 1,5 клетки.' },
-  frenzy:   { type: 'pos', icon: '🍄', name: 'Грибное безумие', desc: 'Появляется в ярости: +250 к макс. здоровью, +5 к скорости и силе, иммунитет к негативным эффектам. Ярость спадает навсегда, если 10 с не получал урона.' },
+  frenzy:   { type: 'rare', icon: '🍄', name: 'Грибное безумие', desc: 'Появляется в ярости: +250 к макс. здоровью, +5 к скорости и силе, 50% сопротивления любому урону, иммунитет к негативным эффектам. Ярость спадает навсегда, если 10 с не получал урона.' },
+  giant:    { type: 'neg', icon: '🏔️', name: 'Великан', desc: 'Спрайт огромный — в него очень трудно промахнуться.' },
+  dumb:     { type: 'neg', icon: '💫', name: 'Тупоголовый', desc: 'Каждые 5 с (пока не в ступоре) с шансом 25% впадает в ступор на 4 с и стоит на месте.' },
+  nest:     { type: 'rare', icon: '🪺', name: 'Гоблинское гнездо', desc: 'Каждые 10 с с него спрыгивают 5 гоблинов — часть спереди, часть сзади. Гоблина, пробегающего сквозь тролля, он с шансом 25% пинает насмерть (если не в ступоре).' },
 };
 // Параметры перков шамана
 TD.SPORES = { every: 2, heal: 30, radius: 1.5 };
-TD.FRENZY = { hp: 250, spd: 5, str: 5, calm: 10 };
+TD.FRENZY = { hp: 250, spd: 5, str: 5, calm: 10, resist: 0.5 };
+// Параметры перков тролля
+TD.GIANT = { size: 2 };
+TD.DUMB = { every: 5, chance: 0.25, stun: 4 };
+TD.NEST = { every: 10, count: 5, kick: 0.25 };
 TD.PERK_TECH = { pos: 2, rare: 5, neg: -2 };
-TD.PERK_TYPE_LABEL = { pos: 'Позитивный', rare: 'Редкий', neg: 'Негативный' };
+TD.PERK_TYPE_LABEL = { pos: 'Позитивный', rare: 'Большой', neg: 'Негативный' };
 
 // Типы врагов: фиксированные параметры и перки.
 TD.UNITS = {
@@ -141,6 +151,10 @@ TD.UNITS = {
   shaman: {
     name: 'Гоблин-шаман', sprite: 'shaman', height: TD.SHAMAN_H,
     stats: { sta: 5, str: 1, spd: 7 }, perks: ['spores', 'frenzy'],
+  },
+  troll: {
+    name: 'Тролль-мусорщик', sprite: 'troll', height: TD.TROLL_H, boss: true, reward: 150,
+    stats: { sta: 15, str: 10, spd: 1 }, perks: ['giant', 'dumb', 'nest'],
   },
 };
 
@@ -163,12 +177,13 @@ TD.GOBLIN_LAST = ['Костеглод', 'Грязнолап', 'Пнёвый', '�
 
 // Волны: порядок появления врагов (G — гоблин, W — гоблин на лютоволке, S — шаман), интервал и награда.
 TD.WAVE_LIST = [
-  { units: 'G'.repeat(28), gap: 0.7, reward: 25 },
-  { units: 'G'.repeat(24) + 'WGWGGWGW'.repeat(2), gap: 0.65, reward: 30 },
-  { units: 'GGSGGWGGSGW' + 'GWGGWGWGGWGWGGWGGWGW' + 'GGSWGGWGSWGG' + 'WGWWGGW', gap: 0.6, reward: 40 },
+  { units: 'G'.repeat(28), gap: 0.7, reward: 60 },
+  { units: 'G'.repeat(24) + 'WGWGGWGW'.repeat(2), gap: 0.65, reward: 100 },
+  { units: 'GGSGGWGGSGW' + 'GWGGWGWGGWGWGGWGGWGW' + 'GGSWGGWGSWGG' + 'WGWWGGW', gap: 0.6, reward: 150 },
+  { units: 'B', gap: 1, reward: 0, boss: true },
 ];
 TD.WAVES = TD.WAVE_LIST.length;
-TD.WAVE_UNIT = { G: 'goblin', W: 'wolfrider', S: 'shaman' };
+TD.WAVE_UNIT = { G: 'goblin', W: 'wolfrider', S: 'shaman', B: 'troll' };
 TD.waveDef = function (n) {
   const w = TD.WAVE_LIST[n - 1];
   return Object.assign({ count: w.units.length }, w);

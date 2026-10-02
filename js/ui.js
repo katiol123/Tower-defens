@@ -142,6 +142,19 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
   UI.clearRoster = function () { $('rosterList').innerHTML = ''; UI.foes.clear(); };
 
+  // ---------------- Полоса здоровья босса ----------------
+  UI.updateBossBar = function (game) {
+    const bar = $('bossBar');
+    const boss = game.enemies.find(e => e.boss && e.alive);
+    if (!boss) { bar.hidden = true; return; }
+    bar.hidden = false;
+    bar.querySelector('.bb-name').textContent = boss.name;
+    bar.querySelector('.bb-state').textContent = boss.stupor > 0 ? '💫 в ступоре' : '';
+    bar.querySelector('.bb-val').textContent = `${fmt(Math.ceil(boss.hp))} / ${boss.hpMax}`;
+    bar.querySelector('.bb-track i').style.width = (boss.hp / boss.hpMax * 100) + '%';
+    bar.onclick = () => UI.openEnemy(boss);
+  };
+
   // ---------------- Карта врага ----------------
   let cardEnemy = null;
   UI.openEnemy = function (e) {
@@ -226,9 +239,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
     card.querySelector('.ec-stamp').hidden = !(dead && !e.leaked);
     if (dead && e.leaked) { const s = card.querySelector('.ec-stamp'); s.hidden = false; s.textContent = 'ПРОРВАЛСЯ'; }
     const status = card.querySelector('.ec-status');
-    if (e.frenzy) {
+    if (e.stupor > 0) {
       status.hidden = false;
-      status.innerHTML = `🍄 В ярости · спадёт через <b>${fmt(Math.max(0, TD.FRENZY.calm - e.calmT), 1)} с</b> без урона`;
+      status.innerHTML = `💫 В ступоре · очнётся через <b>${fmt(e.stupor, 1)} с</b>`;
+    } else if (e.perks.includes('dumb')) {
+      status.hidden = false;
+      status.innerHTML = `💫 Следующая проверка на ступор через <b>${fmt(TD.DUMB.every - e.dumbT, 1)} с</b>`;
+    } else if (e.frenzy) {
+      status.hidden = false;
+      status.innerHTML = `🍄 В ярости: −50% урона · спадёт через <b>${fmt(Math.max(0, TD.FRENZY.calm - e.calmT), 1)} с</b> без урона`;
     } else if (e.perks.includes('frenzy')) {
       status.hidden = false;
       status.innerHTML = 'Ярость прошла';
