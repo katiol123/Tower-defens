@@ -154,6 +154,32 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
   check('в ступоре тролль не пинает', !kickedInStupor);
 }
 
+// Расписание волн: кучки и разные интервалы, порядок юнитов сохраняется
+{
+  let orderOk = true, packs = 0, wide = 0, cvMin = 9, durOk = true, pathsOk = true, packSamePath = true;
+  for (let n = 1; n <= 3; n++) for (let seed = 0; seed < 200; seed++) {
+    const w = TD.waveDef(n), np = 1 + seed % 3;
+    const sch = TD.waveSchedule(w, np, TD.makeRng(seed * 13 + n), 0);
+    const code = sch.map(x => Object.keys(TD.WAVE_UNIT).find(k => TD.WAVE_UNIT[k] === x.type)).join('');
+    if (code !== w.units) orderOk = false;
+    const gaps = sch.slice(1).map((x, i) => x.at - sch[i].at);
+    const m = gaps.reduce((a, b) => a + b) / gaps.length;
+    const cv = Math.sqrt(gaps.reduce((a, b) => a + (b - m) ** 2, 0) / gaps.length) / m;
+    cvMin = Math.min(cvMin, cv);
+    packs += gaps.filter(g => g < w.gap * 0.35).length;
+    wide += gaps.filter(g => g > w.gap * 1.5).length;
+    const dur = sch[sch.length - 1].at;
+    if (dur < w.count * w.gap * 0.5 || dur > w.count * w.gap * 1.6) durOk = false;
+    const cnt = new Array(np).fill(0); sch.forEach(x => cnt[x.path]++);
+    if (Math.max(...cnt) - Math.min(...cnt) > 6) pathsOk = false;
+    for (let i = 1; i < sch.length; i++) if (sch[i].group === 'pack' && sch[i - 1].group === 'pack' && sch[i].at - sch[i - 1].at < w.gap * 0.35 && sch[i].path !== sch[i - 1].path) packSamePath = false;
+  }
+  check('порядок врагов в волне сохраняется (шаманы на своих местах)', orderOk);
+  check('интервалы неравномерные: есть кучки и большие промежутки', packs > 1000 && wide > 500 && cvMin > 0.4, `вплотную ${packs}, с паузой ${wide}, мин. разброс ${cvMin.toFixed(2)}`);
+  check('кучка идёт по одной тропе, тропы загружены примерно поровну', packSamePath && pathsOk);
+  check('длительность волны близка к прежней (0,5–1,6 × число × интервал)', durOk);
+}
+
 const MAPS = +(process.argv[2] || 100);
 console.log('\nПромахи по лютоволку (скорость 15), без перка и с «Серой молнией»:');
 for (const def of TD.TOWERS) {

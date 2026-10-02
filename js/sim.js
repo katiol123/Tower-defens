@@ -219,14 +219,56 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (this.phase === 'wave' && this.spawnQueue.length) return;
     this.wave++;
     const w = TD.waveDef(this.wave);
-    let t = this.time + 0.4;
-    for (let i = 0; i < w.count; i++) {
-      this.spawnQueue.push({ at: t, path: i % this.map.paths.length, type: TD.WAVE_UNIT[w.units[i]] });
-      t += w.gap * (0.8 + this.rng() * 0.4);
-    }
+    this.spawnQueue.push(...TD.waveSchedule(w, this.map.paths.length, this.rng, this.time + 0.4));
     this.phase = 'wave';
     this.countdown = 0;
     this.emit({ type: 'wave', n: this.wave });
+  };
+
+  // Расписание появления врагов волны: порядок юнитов сохраняется, а интервалы рваные —
+  // плотные кучки (вся кучка идёт по одной тропе), одиночки и пары с разным шагом, паузы.
+  // В среднем на одного врага по-прежнему приходится около w.gap секунд.
+  TD.waveSchedule = function (w, nPaths, rng, t0) {
+    const out = [];
+    const load = new Array(nPaths).fill(0);
+    // Тропа для группы — наименее загруженная (при равенстве случайная), чтобы тропы не пустовали.
+    const pickPath = () => {
+      const min = Math.min(...load);
+      const c = load.map((v, i) => v === min ? i : -1).filter(i => i >= 0);
+      return rng.pick(c);
+    };
+    // Типы групп тянутся из перемешанного «мешка»: кучки встречаются равномерно по всей волне,
+    // а не случайными сериями.
+    let bag = [];
+    const draw = () => {
+      if (!bag.length) {
+        bag = ['pack', 'pack', 'single', 'single', 'trickle'];
+        for (let k = bag.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); [bag[k], bag[j]] = [bag[j], bag[k]]; }
+      }
+      return bag.pop();
+    };
+    let t = t0, i = 0;
+    while (i < w.count) {
+      const g = draw();
+      let size, inner, after, kind;
+      if (g === 'pack') {       // кучка: 3–6 врагов почти вплотную
+        kind = 'pack'; size = rng.int(3, 6); inner = () => w.gap * (0.12 + rng() * 0.2); after = w.gap * (1.6 + rng() * 1.6);
+      } else if (g === 'single') { // одиночка или пара с обычным шагом
+        kind = 'single'; size = rng.int(1, 2); inner = () => w.gap * (0.7 + rng() * 0.9); after = w.gap * (0.6 + rng() * 1.2);
+      } else {                  // редкая цепочка с большими промежутками
+        kind = 'trickle'; size = rng.int(2, 4); inner = () => w.gap * (1.5 + rng() * 1.2); after = w.gap * (1.0 + rng() * 1.5);
+      }
+      size = Math.min(size, w.count - i);
+      const groupPath = pickPath();
+      for (let k = 0; k < size; k++, i++) {
+        const path = kind === 'pack' ? groupPath : pickPath();
+        load[path]++;
+        out.push({ at: t, path, type: TD.WAVE_UNIT[w.units[i]], group: kind });
+        if (k < size - 1) t += inner();
+      }
+      t += after;
+    }
+    return out;
   };
 
   // Прицеливание: итеративное упреждение по маршруту врага + случайное отклонение в круге.
