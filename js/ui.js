@@ -118,7 +118,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         el.className = 'foe';
         const col = TD.PATH_COLORS[e.pathId];
         el.innerHTML = `
-          <div class="foe-ava"><span class="foe-path" style="color:${col}"></span><img src="assets/goblin_front.png" alt=""></div>
+          <div class="foe-ava"><span class="foe-path" style="color:${col}"></span><img src="assets/${e.sprite}_front.png" alt=""></div>
           <div class="foe-info">
             <div class="foe-name">${esc(e.name)}</div>
             <div class="foe-meta"><span class="foe-tech">✦ ${e.stats.tech}</span><span class="foe-perks">${e.perks.map(p => TD.PERKS[p].icon).join('')}</span></div>
@@ -195,7 +195,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       const sizeCls = e.size < 1 ? 'slip' : e.size > 1 ? 'fat' : '';
       card.innerHTML = `
         <div class="ec-left">
-          <div class="ec-portrait ${sizeCls}"><div class="ec-shadow"></div><img src="assets/goblin_front.png" alt=""></div>
+          <div class="ec-portrait ${sizeCls}"><div class="ec-shadow"></div><img src="assets/${e.sprite}_front.png" alt=""></div>
           <div class="ec-stamp" hidden>ПОВЕРЖЕН</div>
           <div class="ec-kind">${esc(e.kind)} · тропа ${e.pathId + 1}</div>
           <div class="ec-name">${esc(e.name)}</div>
@@ -296,7 +296,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     c.innerHTML = `
       <h2>${won ? 'Крепость устояла!' : 'Замок пал'}</h2>
       <p>${won ? `Все ${TD.WAVES} волн отбиты. Прочность замка: ${game.castleHp} / ${TD.CASTLE_HP}.` : `Гоблины прорвались на волне ${game.wave}.`}<br>
-      Повержено гоблинов: ${game.stats.kills}, прорвалось: ${game.stats.leaked}.</p>
+      Повержено врагов: ${game.stats.kills}, прорвалось: ${game.stats.leaked}.</p>
       <div class="row"><button id="againBtn">↺ Эта же карта</button><button id="newBtn2">⟳ Новая карта</button></div>`;
     m.hidden = false;
     $('againBtn').onclick = () => { m.hidden = true; TD.newGame(game.seed); };

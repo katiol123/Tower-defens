@@ -156,7 +156,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (game.phase !== game._shownPhase) {
         const prev = game._shownPhase;
         game._shownPhase = game.phase;
-        if (game.phase === 'wave') UI.banner(`Волна ${game.wave}`, `${TD.waveDef(game.wave).count} гоблинов на подходе`, 1800);
+        if (game.phase === 'wave') {
+          const w = TD.waveDef(game.wave), nW = (w.units.match(/W/g) || []).length;
+          UI.banner(`Волна ${game.wave}`, `${w.count - nW} гоблинов${nW ? ` и ${nW} на лютоволках` : ''} на подходе`, 2000);
+        }
         else if (game.phase === 'build' && prev === 'wave') UI.banner(`Волна ${game.wave} отбита!`, `+${TD.waveDef(game.wave).reward} золота · следующая через 20 с`, 2200);
         else if (game.phase === 'won') setTimeout(() => UI.showEnd(game, true), 900);
         else if (game.phase === 'lost') setTimeout(() => UI.showEnd(game, false), 900);

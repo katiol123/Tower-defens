@@ -9,11 +9,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
   const IMG = {};
   const WHITE = {};
   TD.loadSprites = function () {
-    const views = ['front', 'side', 'back'];
-    return Promise.all(views.map(v => new Promise(res => {
+    const jobs = [];
+    for (const sp in TD.SPRITES) for (const v of ['front', 'side', 'back']) jobs.push({ sp, v });
+    return Promise.all(jobs.map(({ sp, v }) => new Promise(res => {
       const im = new Image();
       im.onload = () => {
-        IMG[v] = im;
+        (IMG[sp] = IMG[sp] || {})[v] = im;
         // Белый силуэт для вспышки при попадании.
         const c = document.createElement('canvas');
         c.width = im.width; c.height = im.height;
@@ -22,11 +23,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
         x.globalCompositeOperation = 'source-in';
         x.fillStyle = '#fff';
         x.fillRect(0, 0, c.width, c.height);
-        WHITE[v] = c;
+        (WHITE[sp] = WHITE[sp] || {})[v] = c;
         res();
       };
       im.onerror = res;
-      im.src = `assets/goblin_${v}.png`;
+      im.src = `assets/${sp}_${v}.png`;
     })));
   };
 
@@ -480,11 +481,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
     ctx.restore();
   }
 
-  // ---------------- Гоблин ----------------
+  // ---------------- Враг ----------------
+  const imgOf = e => IMG[e.sprite] && IMG[e.sprite][e.view];
   function drawGoblin(ctx, e, o) {
     const b = TD.enemyBox(e);
-    const img = IMG[e.view];
-    shadow(ctx, e.x, e.y + 13 * e.size, 13 * e.size - e.bob * 0.6, 4.5 * e.size, 0.32);
+    const img = imgOf(e);
+    shadow(ctx, e.x, e.y + 13 * e.size, b.W * (e.view === 'side' ? 0.36 : 0.28) - e.bob * 0.6, 4.5 * e.size, 0.32);
     if (o && o.selected) {
       const pulse = 0.5 + Math.sin(o.t * 6) * 0.5;
       ctx.save();
@@ -500,7 +502,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     ctx.drawImage(img, -b.W / 2, -b.H / 2, b.W, b.H);
     if (e.hitFlash > 0) {
       ctx.globalAlpha = Math.min(1, e.hitFlash * 7) * 0.75;
-      ctx.drawImage(WHITE[e.view], -b.W / 2, -b.H / 2, b.W, b.H);
+      ctx.drawImage(WHITE[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
     }
     ctx.restore();
     // Полоска здоровья
@@ -577,7 +579,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         else spawnFx({ t: 'num', x: ev.x + (Math.random() - 0.5) * 12, y: ev.y, v: ev.v, fire: ev.fire, eid: ev.eid, life: ev.fire ? 0.9 : 0.8 });
       } else if (ev.type === 'death') {
         const e = ev.e;
-        spawnFx({ t: 'corpse', e: { view: e.view, flip: e.flip, size: e.size, x: e.x, y: e.y, bob: e.bob }, life: 0.7 });
+        spawnFx({ t: 'corpse', e: { sprite: e.sprite, height: e.height, view: e.view, flip: e.flip, size: e.size, x: e.x, y: e.y, bob: e.bob }, life: 0.7 });
         spawnFx({ t: 'coin', x: e.x, y: e.y - 30, v: ev.gold, life: 1.0 });
         for (let i = 0; i < 8; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: e.x, y: e.y - 6, vx: Math.cos(q) * 30, vy: Math.sin(q) * 20 - 12, life: 0.6, s: 5 + Math.random() * 5 }); }
       } else if (ev.type === 'castle') {
@@ -589,8 +591,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
       } else if (ev.type === 'build' || ev.type === 'sell') {
         for (let i = 0; i < 12; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: ev.x + Math.cos(q) * 14, y: ev.y + 10 + Math.sin(q) * 6, vx: Math.cos(q) * 25, vy: -8, life: 0.6, s: 5 + Math.random() * 5, light: true }); }
         if (ev.type === 'sell') spawnFx({ t: 'coin', x: ev.x, y: ev.y - 20, v: ev.gold, life: 1.0 });
-      } else if (ev.type === 'stubborn') {
-        spawnFx({ t: 'text', x: ev.e.x, y: ev.e.y - 44, s: 'Упрямец!', col: '#ffcc4d', life: 1.1 });
+      } else if (ev.type === 'dismount') {
+        spawnFx({ t: 'text', x: ev.e.x, y: ev.e.y - 50, s: 'Наездник уцелел!', col: '#ffcc4d', life: 1.3 });
+        for (let i = 0; i < 10; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: ev.e.x, y: ev.e.y, vx: Math.cos(q) * 40, vy: Math.sin(q) * 20 - 10, life: 0.6, s: 6 + Math.random() * 5, light: true }); }
       }
     }
     game.events.length = 0;
@@ -647,7 +650,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.strokeText('+' + f.v, f.x - 1, y);
         ctx.fillStyle = '#ffd98a'; ctx.fillText('+' + f.v, f.x - 1, y);
       } else if (f.t === 'corpse') {
-        const e = f.e, b = TD.enemyBox(e), img = IMG[e.view];
+        const e = f.e, b = TD.enemyBox(e), img = imgOf(e);
         if (img) {
           ctx.globalAlpha = 1 - k;
           ctx.translate(b.cx, b.cy + b.H / 2);

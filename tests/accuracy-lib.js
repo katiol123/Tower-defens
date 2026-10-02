@@ -1,7 +1,7 @@
 // Стрельба по одиночному бессмертному гоблину на случайных картах; считаем промахи.
 const TD = require('./load');
 
-// opts: { dev (px) | acc (1–20), projR, projSpeed, rangeParam, spd, maps, seed0 }
+// opts: { dev (px) | acc (1–20), projR, projSpeed, rangeParam, spd, maps, seed0, unit, perks }
 function measure(opts) {
   const o = Object.assign({ projR: TD.ACC.R0, projSpeed: 14, rangeParam: 8, spd: 10, maps: 60, seed0: 1000, interval: 0.35 }, opts);
   let shots = 0, missed = 0;
@@ -33,7 +33,7 @@ function measure(opts) {
       t.act.dmg = 0;
       t.act.cooldown = o.interval;
       if (o.dev !== undefined) t.act.dev = o.dev;
-      const e = TD.createGoblin(rng, { stats: { spd: o.spd, sta: 5 }, perks: [] });
+      const e = TD.createUnit(o.unit || 'goblin', rng, { stats: { spd: o.spd, sta: 5 }, perks: o.perks || [] });
       game.enemies = []; game.projectiles = [];
       game.spawnEnemy(e, p);
       game.onShot = pr => { if (pr.targetId === e.id) { shots++; if (!pr.hitTarget) missed++; } };

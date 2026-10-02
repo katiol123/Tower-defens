@@ -98,12 +98,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
     waveEnd() { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.35, 0.14, { delay: i * 0.1 })); },
     won() { [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, i === 6 ? 0.9 : 0.25, 0.16, { delay: i * 0.13 })); },
     lost() { [392, 370, 330, 262].forEach((f, i) => tone('sawtooth', f, f * 0.98, 0.5, 0.1, { lp: 900, delay: i * 0.28 })); tone('sine', 60, 30, 1.2, 0.5, { delay: 0.8 }); },
-    stubborn() { tone('sawtooth', 160, 260, 0.25, 0.14, { lp: 1200 }); tone('square', 120, 200, 0.25, 0.06, { lp: 900 }); },
+    // Вой раненого волка
+    dismount() { tone('sawtooth', 520, 880, 0.35, 0.09, { lp: 1600, attack: 0.08 }); tone('sawtooth', 880, 380, 0.7, 0.09, { lp: 1400, delay: 0.35 }); },
     click() { tone('sine', 900, 700, 0.04, 0.08); },
     whoosh() { noise(0.25, 0.14, 'bandpass', 500, 2200, { q: 1.2 }); },
     deny() { tone('square', 220, 180, 0.12, 0.07, { lp: 1200 }); tone('square', 165, 140, 0.16, 0.07, { lp: 1200, delay: 0.1 }); },
   };
-  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, stubborn: 200 };
+  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200 };
 
   function play(name) {
     if (!ready() || !SFX[name]) return;
@@ -147,7 +148,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'waveEnd': if (game.wave < TD.WAVES) play('waveEnd'); break;
           case 'won': play('won'); break;
           case 'lost': play('lost'); break;
-          case 'stubborn': play('stubborn'); break;
+          case 'dismount': play('dismount'); break;
         }
       }
     },

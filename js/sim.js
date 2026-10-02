@@ -7,31 +7,42 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   // ---------------- Маски спрайтов ----------------
   let MASKS = null;
-  function masks() {
-    if (MASKS) return MASKS;
-    MASKS = {};
-    for (const v in TD.GOBLIN_MASKS) {
-      const rows = TD.GOBLIN_MASKS[v];
-      const gh = rows.length, gw = rows[0].length;
-      const bits = new Uint8Array(gw * gh);
-      for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) bits[y * gw + x] = rows[y].charCodeAt(x) === 49 ? 1 : 0;
-      MASKS[v] = { gw, gh, bits };
+  function masks(sprite) {
+    if (!MASKS) {
+      MASKS = {};
+      for (const sp in TD.SPRITES) {
+        MASKS[sp] = {};
+        for (const v in TD.SPRITES[sp].masks) {
+          const rows = TD.SPRITES[sp].masks[v];
+          const gh = rows.length, gw = rows[0].length;
+          const bits = new Uint8Array(gw * gh);
+          for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) bits[y * gw + x] = rows[y].charCodeAt(x) === 49 ? 1 : 0;
+          MASKS[sp][v] = { gw, gh, bits };
+        }
+      }
     }
-    return MASKS;
+    return MASKS[sprite];
+  }
+
+  // Смещение центра спрайта над точкой на дороге: ноги стоят на 14 px ниже точки маршрута.
+  function centerLift(e) {
+    const sp = TD.SPRITES[e.sprite], H = e.height * e.size;
+    return (sp.foot - 0.5) * H - 14 * e.size;
   }
 
   // Геометрия спрайта врага: центр (с учётом покачивания при ходьбе), размеры.
   TD.enemyBox = function (e) {
-    const H = TD.GOBLIN_H * e.size;
-    const s = H / TD.SPRITE_CROP.h;
-    return { cx: e.x, cy: e.y - 10 * e.size - e.bob, W: TD.SPRITE_CROP.w * s, H, cell: TD.SPRITE_CROP.cell * s };
+    const sp = TD.SPRITES[e.sprite];
+    const H = e.height * e.size;
+    const s = H / sp.h;
+    return { cx: e.x, cy: e.y - centerLift(e) - e.bob, W: sp.w * s, H, cell: sp.cell * s };
   };
 
   // Пересекается ли круглый снаряд (px, py, r) с непрозрачными пикселями спрайта врага.
   TD.hitTest = function (e, px, py, r) {
     const b = TD.enemyBox(e);
     if (Math.abs(px - b.cx) > b.W / 2 + r || Math.abs(py - b.cy) > b.H / 2 + r) return false;
-    const m = masks()[e.view];
+    const m = masks(e.sprite)[e.view];
     let lx = (px - (b.cx - b.W / 2)) / b.cell;
     const ly = (py - (b.cy - b.H / 2)) / b.cell;
     if (e.flip) lx = m.gw - lx;
@@ -54,59 +65,38 @@ var TD = globalThis.TD || (globalThis.TD = {});
   // ---------------- Враги ----------------
   let nextId = 1;
 
-  TD.rollPerks = function (rng, boost) {
-    const ids = Object.keys(TD.PERKS);
-    const pos = ids.filter(k => TD.PERKS[k].type === 'pos');
-    const rare = ids.filter(k => TD.PERKS[k].type === 'rare');
-    const neg = ids.filter(k => TD.PERKS[k].type === 'neg');
-    const out = [];
-    const ok = k => !out.includes(k) && !out.some(o => (TD.PERKS[o].excl || []).includes(k) || (TD.PERKS[k].excl || []).includes(o));
-    const add = list => { for (let i = 0; i < 12; i++) { const k = rng.pick(list); if (ok(k)) { out.push(k); return; } } };
-    const r = rng();
-    const nPos = r < 0.42 - boost ? 0 : r < 0.84 - boost / 2 ? 1 : 2;
-    for (let i = 0; i < nPos; i++) add(rng.chance(0.15 + boost / 2) ? rare : pos);
-    if (rng.chance(0.4)) add(neg);
-    return out;
-  };
-
-  TD.createGoblin = function (rng, opts) {
+  // Враг заданного типа (TD.UNITS). Параметры и перки берутся из типа;
+  // opts.stats / opts.perks / opts.name переопределяют их (используется тестами и спешиванием).
+  TD.createUnit = function (type, rng, opts) {
     opts = opts || {};
-    const base = {
-      sta: rng.int(2, 6) + (opts.staBonus || 0),
-      str: rng.int(2, 5),
-      spd: rng.int(7, 13),
-    };
-    Object.assign(base, opts.stats || {});
-    const perks = opts.perks || TD.rollPerks(rng, opts.perkBoost || 0);
+    const U = TD.UNITS[type];
+    const base = Object.assign({}, U.stats, opts.stats || {});
+    const perks = (opts.perks || U.perks).slice();
     const st = Object.assign({}, base);
-    if (perks.includes('brute')) st.str += 3;
-    if (perks.includes('swift')) st.spd += 3;
-    if (perks.includes('lame')) st.spd -= 3;
-    if (perks.includes('sturdy')) st.sta += 3;
-    if (perks.includes('frail')) st.sta -= 3;
     for (const k in st) st[k] = Math.max(1, Math.min(20, st[k]));
     let tech = 3;
     perks.forEach(p => { tech += TD.PERK_TECH[TD.PERKS[p].type]; });
     st.tech = tech;
     const hpMax = TD.F.enemyHp(st.sta);
     const e = {
-      id: nextId++,
+      id: nextId++, type,
       name: opts.name || rng.pick(TD.GOBLIN_FIRST) + ' ' + rng.pick(TD.GOBLIN_LAST),
-      kind: 'Гоблин',
+      kind: opts.kind || U.name,
+      sprite: U.sprite, height: U.height,
       base, stats: st, perks,
       hpMax, hp: hpMax,
-      size: perks.includes('slippery') ? 0.8 : perks.includes('glutton') ? 1.2 : 1,
-      dist: 0, x: 0, y: 0, dx: 1, dy: 0, view: 'side', flip: true, bob: 0,
-      alive: true, stubbornUsed: false, haste: 0, age: 0,
+      size: 1,
+      dist: 0, x: 0, y: 0, dx: 1, dy: 0, view: 'side', flip: false, bob: 0,
+      alive: true, age: 0,
       hitsTaken: 0, dmgTaken: 0, hitFlash: 0,
     };
     e.reward = 2 + Math.round(hpMax / 40);
     return e;
   };
+  TD.createGoblin = (rng, opts) => TD.createUnit('goblin', rng, opts);
 
   function speedMult(e) {
     let m = 1;
-    if (e.haste > 0) m *= 1.5;
     if (e.perks.includes('coward') && e.hp < e.hpMax / 2) m *= 0.7;
     return m;
   }
@@ -115,8 +105,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
   function placeEnemy(e) {
     const p = TD.routeAt(e.route, e.dist);
     e.x = p.x; e.y = p.y; e.dx = p.dx; e.dy = p.dy;
-    if (Math.abs(p.dx) > Math.abs(p.dy)) { e.view = 'side'; e.flip = p.dx > 0; }
-    else { e.view = p.dy > 0 ? 'front' : 'back'; e.flip = false; }
+    if (Math.abs(p.dx) > Math.abs(p.dy)) {
+      e.view = 'side';
+      // Боковой ракурс отражается, когда юнит идёт не туда, куда смотрит исходная картинка.
+      e.flip = TD.SPRITES[e.sprite].sideFaces === 'left' ? p.dx > 0 : p.dx < 0;
+    } else { e.view = p.dy > 0 ? 'front' : 'back'; e.flip = false; }
     e.bob = Math.abs(Math.sin(e.dist / T() * Math.PI * 1.6)) * 2.5 * e.size;
   }
   TD.placeEnemy = placeEnemy;
@@ -124,8 +117,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
   // Центр спрайта врага через t секунд (по маршруту, при текущей скорости).
   TD.predictCenter = function (e, t) {
     const p = TD.routeAt(e.route, e.dist + TD.enemySpeedPx(e) * t);
-    return { x: p.x, y: p.y - 10 * e.size - e.bob };
+    return { x: p.x, y: p.y - centerLift(e) - e.bob };
   };
+
+  // Точность вышки против конкретного врага («Серая молния» — на 3 меньше, не меньше 1).
+  TD.effectiveAcc = (tower, e) => e.perks.includes('blur') ? Math.max(1, tower.def.stats.acc - 3) : tower.def.stats.acc;
 
   // ---------------- Игра ----------------
   TD.Game = function (seed, opts) {
@@ -136,6 +132,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     this.enemies = [];
     this.towers = [];
     this.projectiles = [];
+    this.pending = [];
     this.events = [];
     this.gold = TD.START_GOLD;
     this.castleHp = TD.CASTLE_HP;
@@ -196,7 +193,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const w = TD.waveDef(this.wave);
     let t = this.time + 0.4;
     for (let i = 0; i < w.count; i++) {
-      this.spawnQueue.push({ at: t, path: i % this.map.paths.length, w });
+      this.spawnQueue.push({ at: t, path: i % this.map.paths.length, type: TD.WAVE_UNIT[w.units[i]] });
       t += w.gap * (0.8 + this.rng() * 0.4);
     }
     this.phase = 'wave';
@@ -214,7 +211,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
       t = Math.hypot(P.x - mx, P.y - my) / sp;
     }
     const ang = this.rng() * Math.PI * 2;
-    const rho = tower.act.dev * Math.sqrt(this.rng());
+    const acc = TD.effectiveAcc(tower, e);
+    const dev = acc === tower.def.stats.acc ? tower.act.dev : TD.F.aimDeviation(acc, tower.def.proj.r);
+    const rho = dev * Math.sqrt(this.rng());
     return { x: P.x + Math.cos(ang) * rho, y: P.y + Math.sin(ang) * rho, t };
   };
 
@@ -251,21 +250,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   G.damage = function (e, dmg, tower, fire) {
     if (!e.alive) return 0;
-    if (fire && e.perks.includes('fireproof')) dmg *= 0.25;
-    if (fire && e.perks.includes('flammable')) dmg *= 1.5;
-    if (e.perks.includes('thickhide')) dmg = Math.max(dmg * 0.3, dmg - 1.5);
     dmg = Math.round(dmg * 10) / 10;
     e.hitsTaken++;
     e.hitFlash = 0.12;
-    if (e.hp - dmg <= 0 && e.perks.includes('stubborn') && !e.stubbornUsed) {
-      e.stubbornUsed = true;
-      const dealt = e.hp - 1;
-      e.hp = 1; e.haste = 2;
-      e.dmgTaken += dealt;
-      if (tower) tower.dmgDealt += dealt;
-      this.emit({ type: 'stubborn', e });
-      return dealt;
-    }
     const dealt = Math.min(e.hp, dmg);
     e.hp -= dmg;
     e.dmgTaken += dealt;
@@ -277,6 +264,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
       this.stats.kills++;
       if (tower) tower.kills++;
       this.emit({ type: 'death', e, gold: e.reward });
+      // «Последний рывок волка»: с шансом 30% наездник остаётся жив с 50% здоровья.
+      if (e.perks.includes('dismount') && this.rng() < 0.3) {
+        const g = TD.createUnit('goblin', this.rng, { name: e.name, kind: 'Гоблин (спешенный наездник)' });
+        g.hp = g.hpMax * 0.5;
+        g.pathId = e.pathId; g.route = e.route; g.dist = e.dist;
+        placeEnemy(g);
+        this.pending.push(g);
+        this.emit({ type: 'dismount', e, g });
+      }
     }
     return dealt;
   };
@@ -379,16 +375,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
     // Появление врагов
     while (this.spawnQueue.length && this.spawnQueue[0].at <= this.time) {
       const s = this.spawnQueue.shift();
-      const e = TD.createGoblin(this.rng, { staBonus: s.w.staBonus, perkBoost: s.w.perkBoost });
-      this.spawnEnemy(e, s.path);
+      this.spawnEnemy(TD.createUnit(s.type, this.rng), s.path);
     }
     // Движение врагов
     for (const e of this.enemies) {
       if (!e.alive) continue;
       e.age += dt;
-      e.haste = Math.max(0, e.haste - dt);
       e.hitFlash = Math.max(0, e.hitFlash - dt);
-      if (e.perks.includes('regen')) e.hp = Math.min(e.hpMax, e.hp + e.hpMax * 0.015 * dt);
       e.dist += TD.enemySpeedPx(e) * dt;
       if (e.dist >= e.route.length) {
         e.alive = false; e.leaked = true;
@@ -403,6 +396,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
     for (const p of this.projectiles) if (!p.done) this.updateProjectile(p, dt);
     this.projectiles = this.projectiles.filter(p => !p.done);
     this.enemies = this.enemies.filter(e => e.alive);
+    // Спешенные наездники появляются после обработки снарядов этого шага.
+    if (this.pending.length) { this.enemies.push(...this.pending); this.pending.length = 0; }
 
     if (this.castleHp <= 0 && this.phase !== 'lost') { this.phase = 'lost'; this.emit({ type: 'lost' }); return; }
     if (this.phase === 'wave' && !this.spawnQueue.length && !this.enemies.length) {

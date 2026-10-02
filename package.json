@@ -3,9 +3,10 @@
   "private": true,
   "description": "Крепость на распутье — tower defense на чистом HTML/JS/Canvas",
   "scripts": {
-    "test": "node tests/accuracy-test.js && node tests/balance-test.js && node tests/mapgen-test.js",
+    "test": "node tests/accuracy-test.js && node tests/balance-test.js && node tests/units-test.js && node tests/mapgen-test.js",
     "test:accuracy": "node tests/accuracy-test.js",
     "test:balance": "node tests/balance-test.js",
+    "test:units": "node tests/units-test.js",
     "test:mapgen": "node tests/mapgen-test.js",
     "test:playthrough": "node tests/playthrough-test.js",
     "assets": "node tools/build-assets.js"
