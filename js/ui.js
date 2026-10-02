@@ -146,6 +146,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   let cardEnemy = null;
   UI.openEnemy = function (e) {
     cardEnemy = e;
+    cardFrenzy = null;
     UI.selectedEnemy = e.id;
     renderCard(true);
     $('enemyModal').hidden = false;
@@ -200,6 +201,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           <div class="ec-kind">${esc(e.kind)} · тропа ${e.pathId + 1}</div>
           <div class="ec-name">${esc(e.name)}</div>
           <div class="ec-hp"><i></i><b></b></div>
+          <div class="ec-status" hidden></div>
           <div class="ec-mini">
             <div><b>${st.str}</b>урон замку</div>
             <div><b>${fmt(spd, 2)}</b>клеток/с</div>
@@ -223,10 +225,25 @@ var TD = globalThis.TD || (globalThis.TD = {});
     card.classList.toggle('ec-dead', dead);
     card.querySelector('.ec-stamp').hidden = !(dead && !e.leaked);
     if (dead && e.leaked) { const s = card.querySelector('.ec-stamp'); s.hidden = false; s.textContent = 'ПРОРВАЛСЯ'; }
+    const status = card.querySelector('.ec-status');
+    if (e.frenzy) {
+      status.hidden = false;
+      status.innerHTML = `🍄 В ярости · спадёт через <b>${fmt(Math.max(0, TD.FRENZY.calm - e.calmT), 1)} с</b> без урона`;
+    } else if (e.perks.includes('frenzy')) {
+      status.hidden = false;
+      status.innerHTML = 'Ярость прошла';
+    } else status.hidden = true;
     card.querySelector('.ec-hp i').style.width = (e.hp / e.hpMax * 100) + '%';
     card.querySelector('.ec-hp b').textContent = `${fmt(Math.ceil(e.hp))} / ${e.hpMax}`;
   }
-  UI.tickCard = function () { if (cardEnemy) renderCard(false); };
+  let cardFrenzy = null;
+  UI.tickCard = function () {
+    if (!cardEnemy) return;
+    // При смене ярости меняются параметры — перерисовываем карту целиком.
+    const full = cardFrenzy !== null && cardFrenzy !== !!cardEnemy.frenzy;
+    cardFrenzy = !!cardEnemy.frenzy;
+    renderCard(full);
+  };
 
   // ---------------- Панель вышки ----------------
   UI.selectTower = function (t, view) {

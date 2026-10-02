@@ -24,6 +24,11 @@ const UNITS = {
     w: 856, h: 880, x: { front: 84, side: 84, back: 84 }, y: { front: 74, side: 34, back: 26 },
     foot: 864, sideFaces: 'right',
   },
+  shaman: {
+    src: v => `assets/source/shaman_${v}.png`,
+    w: 640, h: 780, x: { front: 210, side: 210, back: 210 }, y: { front: 125, side: 114, back: 132 },
+    foot: 770, sideFaces: 'right',
+  },
 };
 
 (async () => {

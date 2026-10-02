@@ -15,6 +15,7 @@ TD.SELL_RATE = 0.7;
 // Высота рамки спрайта в мировых пикселях (у гоблина рамка 816×912 исходника, у лютоволка 856×880).
 TD.GOBLIN_H = 50;
 TD.WOLFRIDER_H = 64;
+TD.SHAMAN_H = 54;
 
 // ---------------------------------------------------------------------------
 // Формулы. Все параметры вышек и врагов — целые от 1 до 20.
@@ -118,7 +119,12 @@ TD.PERKS = {
   coward:   { type: 'neg', icon: '😱', name: 'Трусливый', desc: 'При здоровье ниже половины скорость падает на 30%.' },
   dismount: { type: 'pos', icon: '🐺', name: 'Последний рывок волка', desc: 'При смертельном уроне с шансом 30% волк погибает, а наездник остаётся на его месте — гоблином с 50% здоровья.' },
   blur:     { type: 'pos', icon: '💨', name: 'Серая молния', desc: 'Вышки целятся в него хуже: их точность считается на 3 меньше (но не меньше 1).' },
+  spores:   { type: 'pos', icon: '🌿', name: 'Целебные споры', desc: 'Каждые 2 с восстанавливает 30 здоровья себе и союзникам в радиусе 1,5 клетки.' },
+  frenzy:   { type: 'pos', icon: '🍄', name: 'Грибное безумие', desc: 'Появляется в ярости: +250 к макс. здоровью, +5 к скорости и силе, иммунитет к негативным эффектам. Ярость спадает навсегда, если 10 с не получал урона.' },
 };
+// Параметры перков шамана
+TD.SPORES = { every: 2, heal: 30, radius: 1.5 };
+TD.FRENZY = { hp: 250, spd: 5, str: 5, calm: 10 };
 TD.PERK_TECH = { pos: 2, rare: 5, neg: -2 };
 TD.PERK_TYPE_LABEL = { pos: 'Позитивный', rare: 'Редкий', neg: 'Негативный' };
 
@@ -131,6 +137,10 @@ TD.UNITS = {
   wolfrider: {
     name: 'Гоблин на лютоволке', sprite: 'wolfrider', height: TD.WOLFRIDER_H,
     stats: { sta: 2, str: 1, spd: 15 }, perks: ['dismount', 'blur'],
+  },
+  shaman: {
+    name: 'Гоблин-шаман', sprite: 'shaman', height: TD.SHAMAN_H,
+    stats: { sta: 5, str: 1, spd: 7 }, perks: ['spores', 'frenzy'],
   },
 };
 
@@ -151,13 +161,14 @@ TD.GOBLIN_LAST = ['Костеглод', 'Грязнолап', 'Пнёвый', '�
   'Рваное Ухо', 'Жабоед', 'Сажевый', 'Червивый', 'Трёхпалый', 'Лысый', 'Кочкарь', 'Дубинщик', 'Болотник',
   'Косой', 'Громкоглот', 'Сухопятый', 'Злыдень'];
 
-// Волны: порядок появления врагов (G — гоблин, W — гоблин на лютоволке), интервал и награда.
+// Волны: порядок появления врагов (G — гоблин, W — гоблин на лютоволке, S — шаман), интервал и награда.
 TD.WAVE_LIST = [
-  { units: 'G'.repeat(14), gap: 1.0, reward: 25 },
-  { units: 'G'.repeat(12) + 'WGWGGWGW', gap: 0.9, reward: 30 },
+  { units: 'G'.repeat(28), gap: 0.7, reward: 25 },
+  { units: 'G'.repeat(24) + 'WGWGGWGW'.repeat(2), gap: 0.65, reward: 30 },
+  { units: 'GGSGGWGGSGW' + 'GWGGWGWGGWGWGGWGGWGW' + 'GGSWGGWGSWGG' + 'WGWWGGW', gap: 0.6, reward: 40 },
 ];
 TD.WAVES = TD.WAVE_LIST.length;
-TD.WAVE_UNIT = { G: 'goblin', W: 'wolfrider' };
+TD.WAVE_UNIT = { G: 'goblin', W: 'wolfrider', S: 'shaman' };
 TD.waveDef = function (n) {
   const w = TD.WAVE_LIST[n - 1];
   return Object.assign({ count: w.units.length }, w);

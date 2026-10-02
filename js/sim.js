@@ -91,13 +91,34 @@ var TD = globalThis.TD || (globalThis.TD = {});
       hitsTaken: 0, dmgTaken: 0, hitFlash: 0,
     };
     e.reward = 2 + Math.round(hpMax / 40);
+    if (perks.includes('spores')) e.sporeT = 0;
+    if (perks.includes('frenzy')) setFrenzy(e, true);
     return e;
   };
+
+  // «Грибное безумие»: прибавка к макс. здоровью, скорости и силе; спадает без урона.
+  function setFrenzy(e, on) {
+    const F = TD.FRENZY;
+    if (on) {
+      e.frenzy = true; e.calmT = 0;
+      e.stats.spd = Math.min(20, e.base.spd + F.spd);
+      e.stats.str = Math.min(20, e.base.str + F.str);
+      e.hpMax += F.hp; e.hp += F.hp;
+    } else {
+      e.frenzy = false;
+      e.stats.spd = e.base.spd; e.stats.str = e.base.str;
+      e.hpMax -= F.hp; e.hp = Math.min(e.hp, e.hpMax);
+    }
+  }
+  TD.setFrenzy = setFrenzy;
+  // Иммунитет к негативным эффектам (пока это негативные перки вроде «Трусливого»).
+  TD.isImmune = e => !!e.frenzy;
+  const negActive = (e, id) => e.perks.includes(id) && !TD.isImmune(e);
   TD.createGoblin = (rng, opts) => TD.createUnit('goblin', rng, opts);
 
   function speedMult(e) {
     let m = 1;
-    if (e.perks.includes('coward') && e.hp < e.hpMax / 2) m *= 0.7;
+    if (negActive(e, 'coward') && e.hp < e.hpMax / 2) m *= 0.7;
     return m;
   }
   TD.enemySpeedPx = e => TD.F.enemySpeed(e.stats.spd) * T() * speedMult(e);
@@ -251,6 +272,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   G.damage = function (e, dmg, tower, fire) {
     if (!e.alive) return 0;
     dmg = Math.round(dmg * 10) / 10;
+    e.calmT = 0;
     e.hitsTaken++;
     e.hitFlash = 0.12;
     const dealt = Math.min(e.hp, dmg);
@@ -275,6 +297,18 @@ var TD = globalThis.TD || (globalThis.TD = {});
       }
     }
     return dealt;
+  };
+
+  // «Целебные споры»: лечение себя и союзников рядом.
+  G.spores = function (src) {
+    const R = TD.SPORES.radius * T();
+    const healed = [];
+    for (const e of this.enemies) {
+      if (!e.alive || Math.hypot(e.x - src.x, e.y - src.y) > R) continue;
+      const add = Math.min(TD.SPORES.heal, e.hpMax - e.hp);
+      if (add > 0) { e.hp += add; healed.push({ e, v: add }); }
+    }
+    this.emit({ type: 'spores', e: src, r: R, healed });
   };
 
   G.explode = function (p, x, y, direct) {
@@ -382,6 +416,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (!e.alive) continue;
       e.age += dt;
       e.hitFlash = Math.max(0, e.hitFlash - dt);
+      if (e.frenzy) {
+        e.calmT += dt;
+        if (e.calmT >= TD.FRENZY.calm) { setFrenzy(e, false); this.emit({ type: 'calm', e }); }
+      }
+      if (e.sporeT !== undefined) {
+        e.sporeT += dt;
+        if (e.sporeT >= TD.SPORES.every) { e.sporeT -= TD.SPORES.every; this.spores(e); }
+      }
       e.dist += TD.enemySpeedPx(e) * dt;
       if (e.dist >= e.route.length) {
         e.alive = false; e.leaked = true;

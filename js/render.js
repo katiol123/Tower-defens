@@ -495,6 +495,16 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.beginPath(); ctx.ellipse(e.x, e.y + 13 * e.size, 17 * e.size + pulse * 3, 7 * e.size + pulse, 0, 0, TAU); ctx.stroke();
       ctx.restore();
     }
+    if (e.frenzy) {
+      // Аура «Грибного безумия»
+      const k = 0.75 + Math.sin(o.t * 9 + e.id) * 0.25;
+      const g = ctx.createRadialGradient(b.cx, b.cy, 4, b.cx, b.cy, b.H * 0.62);
+      g.addColorStop(0, `rgba(255,70,40,${0.55 * k})`);
+      g.addColorStop(0.6, `rgba(220,40,140,${0.18 * k})`);
+      g.addColorStop(1, 'rgba(200,0,80,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(b.cx, b.cy, b.H * 0.62, 0, TAU); ctx.fill();
+    }
     if (!img) return;
     ctx.save();
     ctx.translate(b.cx, b.cy);
@@ -591,6 +601,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
       } else if (ev.type === 'build' || ev.type === 'sell') {
         for (let i = 0; i < 12; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: ev.x + Math.cos(q) * 14, y: ev.y + 10 + Math.sin(q) * 6, vx: Math.cos(q) * 25, vy: -8, life: 0.6, s: 5 + Math.random() * 5, light: true }); }
         if (ev.type === 'sell') spawnFx({ t: 'coin', x: ev.x, y: ev.y - 20, v: ev.gold, life: 1.0 });
+      } else if (ev.type === 'spores') {
+        spawnFx({ t: 'heal', x: ev.e.x, y: ev.e.y, r: ev.r, life: 0.7 });
+        for (const h of ev.healed) spawnFx({ t: 'num', x: h.e.x, y: h.e.y - 30, v: h.v, heal: true, life: 0.9 });
+        for (let i = 0; i < 8; i++) { const q = Math.random() * TAU, d = Math.random() * ev.r * 0.8; spawnFx({ t: 'spore', x: ev.e.x + Math.cos(q) * d, y: ev.e.y + Math.sin(q) * d * 0.6, vx: 0, vy: -18 - Math.random() * 15, life: 0.9 }); }
+      } else if (ev.type === 'calm') {
+        spawnFx({ t: 'text', x: ev.e.x, y: ev.e.y - 50, s: 'Ярость прошла', col: '#d7b8ff', life: 1.3 });
       } else if (ev.type === 'dismount') {
         spawnFx({ t: 'text', x: ev.e.x, y: ev.e.y - 50, s: 'Наездник уцелел!', col: '#ffcc4d', life: 1.3 });
         for (let i = 0; i < 10; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: ev.e.x, y: ev.e.y, vx: Math.cos(q) * 40, vy: Math.sin(q) * 20 - 10, life: 0.6, s: 6 + Math.random() * 5, light: true }); }
@@ -618,6 +634,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       } else if (f.t === 'smoke') {
         ctx.fillStyle = f.light ? `rgba(230,215,190,${0.45 * (1 - k)})` : `rgba(60,55,50,${0.45 * (1 - k)})`;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.s * (0.6 + k), 0, TAU); ctx.fill();
+      } else if (f.t === 'heal') {
+        ctx.strokeStyle = `rgba(140,255,120,${0.7 * (1 - k)})`; ctx.lineWidth = 2.5;
+        ctx.fillStyle = `rgba(120,255,110,${0.12 * (1 - k)})`;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y + 4, f.r * (0.2 + 0.8 * k), f.r * (0.2 + 0.8 * k) * 0.55, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      } else if (f.t === 'spore') {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = `rgba(170,255,140,${1 - k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 2.2, 0, TAU); ctx.fill();
       } else if (f.t === 'ring') {
         ctx.strokeStyle = `rgba(255,200,110,${0.8 * (1 - k)})`; ctx.lineWidth = 3 * (1 - k) + 1;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.7 * Math.sqrt(k)), 0, TAU); ctx.stroke();
@@ -632,9 +656,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
         ctx.font = f.castle ? 'bold 18px Philosopher, sans-serif' : f.fire ? 'bold 12px Philosopher, sans-serif' : 'bold 13px Philosopher, sans-serif';
         ctx.textAlign = 'center';
         ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        const s = f.castle ? `♜ ${f.v}` : (Math.round(f.v * 10) / 10).toString().replace('.', ',');
+        const s = f.castle ? `♜ ${f.v}` : (f.heal ? '+' : '') + (Math.round(f.v * 10) / 10).toString().replace('.', ',');
         ctx.strokeText(s, f.x, y);
-        ctx.fillStyle = f.castle ? '#ff6a55' : f.fire ? '#ffb454' : '#fff2d0';
+        ctx.fillStyle = f.castle ? '#ff6a55' : f.heal ? '#8dff7a' : f.fire ? '#ffb454' : '#fff2d0';
         ctx.fillText(s, f.x, y);
       } else if (f.t === 'text') {
         ctx.globalAlpha = 1 - k; ctx.font = 'bold 14px Philosopher, sans-serif'; ctx.textAlign = 'center';

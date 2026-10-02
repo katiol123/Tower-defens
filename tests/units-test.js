@@ -40,6 +40,47 @@ const tw = acc => ({ def: { stats: { acc } } });
 check('точность 20 → 17, 3 → 1, 1 → 1',
   TD.effectiveAcc(tw(20), w) === 17 && TD.effectiveAcc(tw(3), w) === 1 && TD.effectiveAcc(tw(1), w) === 1 && TD.effectiveAcc(tw(20), g) === 20);
 
+// Шаман: параметры и «Грибное безумие»
+{
+  const sh = TD.createUnit('shaman', TD.makeRng(3));
+  check('Шаман: выносливость 5, сила 1, скорость 7, техника 7',
+    sh.base.sta === 5 && sh.base.str === 1 && sh.base.spd === 7 && sh.stats.tech === 7 && sh.perks.join() === 'spores,frenzy');
+  check('в ярости: здоровье 115 + 250, скорость 7 + 5, сила 1 + 5',
+    sh.frenzy && sh.hpMax === 365 && sh.hp === 365 && sh.stats.spd === 12 && sh.stats.str === 6);
+  const gm = new TD.Game(11);
+  gm.spawnEnemy(sh, 0); sh.dist = 150; TD.placeEnemy(sh);
+  const step = sec => { for (let i = 0; i < Math.round(sec * 60); i++) gm.update(TD.DT); };
+  step(8); gm.damage(sh, 5, null, false); step(8);
+  check('урон сбрасывает таймер: через 16 с (урон на 8-й) ярость ещё есть', sh.frenzy);
+  step(2.2);
+  check('после 10 с без урона ярость спадает: 115 здоровья, скорость 7, сила 1',
+    !sh.frenzy && sh.hpMax === 115 && sh.hp <= 115 && sh.stats.spd === 7 && sh.stats.str === 1);
+  const coward = TD.createUnit('goblin', TD.makeRng(4)); coward.hp = 10;
+  coward.frenzy = true;
+  const fast = TD.enemySpeedPx(coward); coward.frenzy = false;
+  check('иммунитет к негативным эффектам: «Трусливый» не замедляет в ярости', fast > TD.enemySpeedPx(coward));
+}
+
+// Шаман: «Целебные споры»
+{
+  const gm = new TD.Game(12);
+  const sh = TD.createUnit('shaman', TD.makeRng(5));
+  const near = TD.createUnit('goblin', TD.makeRng(6)), far = TD.createUnit('goblin', TD.makeRng(7)), full = TD.createUnit('goblin', TD.makeRng(8));
+  for (const [u, d] of [[sh, 300], [near, 300 + TD.TILE], [far, 300 + 3 * TD.TILE], [full, 300 - 20]]) { gm.spawnEnemy(u, 0); u.dist = d; }
+  // Замораживаем движение, чтобы проверить только лечение
+  const spd = TD.enemySpeedPx; TD.enemySpeedPx = () => 0;
+  [sh, near, far, full].forEach(TD.placeEnemy);
+  near.hp = 20; far.hp = 20; full.hp = full.hpMax; sh.hp = 300;
+  for (let i = 0; i < Math.round(1.9 * 60); i++) gm.update(TD.DT);
+  const before = near.hp;
+  for (let i = 0; i < Math.round(0.2 * 60); i++) gm.update(TD.DT);
+  TD.enemySpeedPx = spd;
+  check('лечение раз в 2 с: до срабатывания не лечит', before === 20);
+  check('союзник в радиусе 1,5 клетки получает +30', near.hp === 50, `здоровье ${near.hp}`);
+  check('союзник дальше радиуса не лечится', far.hp === 20, `здоровье ${far.hp}`);
+  check('шаман лечит и себя, не выше максимума', sh.hp === 330 && full.hp === full.hpMax);
+}
+
 const MAPS = +(process.argv[2] || 100);
 console.log('\nПромахи по лютоволку (скорость 15), без перка и с «Серой молнией»:');
 for (const def of TD.TOWERS) {
