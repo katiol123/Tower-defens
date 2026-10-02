@@ -103,9 +103,8 @@ TD.PATH_COLORS = ['#ff6b6b', '#7ad1ff', '#c78bff'];
       for (let y = castle.y - 1; y < castle.y + castle.h + 1; y++) blocked.add(key(x, y));
     blocked.delete(key(gateTile.x, gateTile.y));
 
-    // Количество дорожек: 1, 2 или 3 с шансом по 1/3.
-    const r = rng();
-    const nPaths = r < 1 / 3 ? 1 : r < 2 / 3 ? 2 : 3;
+    // Количество дорожек: 2 или 3 с шансом по 1/2.
+    const nPaths = rng() < 0.5 ? 2 : 3;
 
     // Точки появления на краях (левый край и левая часть верхнего/нижнего краёв).
     function spawnCandidate() {

@@ -121,17 +121,21 @@ var TD = globalThis.TD || (globalThis.TD = {});
   }
 
   function setFlame(on) {
-    if (!ready()) { if (flame) { flame.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); } return; }
+    if (!ctx) return;
+    if (!ready()) { if (flame) flame.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); return; }
     if (!flame) {
+      if (!on) return;            // создаём шум только когда огнемёт реально стреляет
       const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
       const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.6;
       const f2 = ctx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = 2600;
       const g = ctx.createGain(); g.gain.value = 0;
-      // Треск: медленная модуляция громкости
+      // Треск: громкость пульсирует 1 ± 0,35. Пульсация умножается на основную громкость,
+      // поэтому при громкости 0 тишина (раньше она прибавлялась и шум был слышен всегда).
+      const crackle = ctx.createGain(); crackle.gain.value = 1;
       const lfo = ctx.createOscillator(), lg = ctx.createGain();
-      lfo.frequency.value = 13; lg.gain.value = 0.05;
-      lfo.connect(lg).connect(g.gain);
-      s.connect(f).connect(f2).connect(g).connect(master);
+      lfo.frequency.value = 13; lg.gain.value = 0.35;
+      lfo.connect(lg).connect(crackle.gain);
+      s.connect(f).connect(f2).connect(g).connect(crackle).connect(master);
       s.start(); lfo.start();
       flame = { g };
     }

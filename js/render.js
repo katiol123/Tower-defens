@@ -731,7 +731,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         ctx.font = f.castle ? 'bold 18px Philosopher, sans-serif' : f.fire ? 'bold 12px Philosopher, sans-serif' : 'bold 13px Philosopher, sans-serif';
         ctx.textAlign = 'center';
         ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        const s = f.castle ? `♜ ${f.v}` : (f.heal ? '+' : '') + (Math.round(f.v * 10) / 10).toString().replace('.', ',');
+        const s = f.castle ? `♜ ${f.v}` : (f.heal ? '+' : '') + (Math.round(f.v * 100) / 100).toString().replace('.', ',');
         ctx.strokeText(s, f.x, y);
         ctx.fillStyle = f.castle ? '#ff6a55' : f.heal ? '#8dff7a' : f.fire ? '#ffb454' : '#fff2d0';
         ctx.fillText(s, f.x, y);

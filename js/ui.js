@@ -4,6 +4,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
 (function () {
   const $ = id => document.getElementById(id);
   const fmt = (v, d) => (d ? v.toFixed(d) : String(Math.round(v))).replace('.', ',');
+  // Число до сотых без лишних нулей: 3,25 / 29,65 / 9
+  const num = v => String(Math.round(v * 100) / 100).replace('.', ',');
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   const UI = TD.UI = {
@@ -35,7 +37,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           <span class="tc-key">${i + 1}</span>
         </div>
         <div class="tc-stats">
-          ${row('Урон', s.dmg, fmt(a.dmg, 1), s.dmg * 5)}
+          ${row('Урон', s.dmg, num(a.dmg), s.dmg * 5)}
           ${def.burst
             ? row('Скорость стрельбы', 'очередь', `${def.burst.shots}× / ${fmt(def.burst.shots * def.burst.gap + def.burst.reload, 1)} с`, 100, true)
             : row('Скорость стрельбы', s.rate, def.flame ? fmt(a.rate, 0) + ' сгуст./с' : fmt(a.rate, 1) + '/с', s.rate * 5)}
@@ -284,7 +286,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       <div class="tp-head"><span class="tp-name">${esc(t.def.name)}</span><button class="tp-x" title="Закрыть">✕</button></div>
       <div class="tp-sub">${esc(t.def.title)}${t.def.perk ? ' · ' + t.def.perk.icon + ' ' + esc(t.def.perk.name) : ''}</div>
       <div class="tp-grid">
-        <span>Урон ${s.dmg}</span><b>${fmt(a.dmg, 1)}</b>
+        <span>Урон ${s.dmg}</span><b>${num(a.dmg)}</b>
         <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(t.def.burst.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
         <span>Точность ${s.acc}</span><b>±${fmt(a.dev, 0)} px</b>
         <span>Дальность ${s.range}</span><b>${fmt(a.range, 1)} кл</b>

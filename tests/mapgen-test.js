@@ -1,4 +1,4 @@
-// Проверка генератора: 1–3 дорожки по 1/3, слияние ~50%, все маршруты ведут к замку.
+// Проверка генератора: 2 или 3 дорожки по 1/2, слияние ~50%, все маршруты ведут к замку.
 // Запуск: node tests/mapgen-test.js
 const TD = require('./load');
 const N = +(process.argv[2] || 600);
@@ -26,7 +26,8 @@ console.log(`Клеток-перекрёстков в среднем на кар
 lens.sort((a, b) => a - b);
 console.log(`Длина маршрута, клеток: мин ${lens[0].toFixed(0)}, медиана ${lens[lens.length >> 1].toFixed(0)}, макс ${lens[lens.length - 1].toFixed(0)}`);
 let ok = bad === 0;
-for (const k of [1, 2, 3]) if (Math.abs(cnt[k] / N - 1 / 3) > 0.06) ok = false;
+if (cnt[1] !== 0) ok = false;
+for (const k of [2, 3]) if (Math.abs(cnt[k] / N - 1 / 2) > 0.06) ok = false;
 if (Math.abs(merged / mergeable - 0.5) > 0.07) ok = false;
 console.log(bad ? `FAIL: ${bad} маршрутов не ведут к замку` : 'OK   все маршруты заканчиваются у ворот замка');
 console.log(ok ? 'OK   распределения в норме' : 'FAIL распределения вне допуска');
