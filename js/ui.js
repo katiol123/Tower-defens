@@ -301,7 +301,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         <div class="ec-left">
           <div class="ec-portrait ${sizeCls}"><div class="ec-shadow"></div><img src="assets/${e.sprite}_front.png" alt=""></div>
           <div class="ec-stamp" hidden>ПОВЕРЖЕН</div>
-          <div class="ec-kind">${esc(e.kind)} · тропа ${e.pathId + 1}</div>
+          <div class="ec-kind">${esc(e.kind)}${e.preview ? '' : ` · тропа ${e.pathId + 1}`}</div>
           <div class="ec-name">${esc(e.name)}</div>
           <div class="ec-hp"><i></i><b></b></div>
           <div class="ec-status" hidden></div>
@@ -442,43 +442,23 @@ var TD = globalThis.TD || (globalThis.TD = {});
     q('.tp-kills').textContent = t.kills;
   };
 
-  // ---------------- Конец игры ----------------
-  // ---------------- Выбор уровня ----------------
-  UI.levelsOpen = () => !$('levelModal').hidden;
-  UI.showLevels = function () {
-    const list = $('levelList');
-    list.innerHTML = '';
-    for (const id of Object.keys(TD.LEVELS)) {
-      const L = TD.LEVELS[id];
-      const types = [];
-      L.waves.forEach(w => { for (const ch of w.units) if (TD.WAVE_UNIT[ch] && !types.includes(TD.WAVE_UNIT[ch])) types.push(TD.WAVE_UNIT[ch]); });
-      const total = L.waves.reduce((s, w) => s + w.units.replace(/&/g, '').length, 0);
-      const b = document.createElement('button');
-      b.className = 'lv';
-      b.innerHTML = `<div class="lv-num">Уровень ${id}${+id === UI.level ? '<span class="lv-cur">сейчас</span>' : ''}</div>
-        <div class="lv-name">${esc(L.name)}</div>
-        <div class="lv-desc">${esc(L.desc)}</div>
-        <div class="lv-foes">${types.map(t => `<img src="assets/${TD.UNITS[t].sprite}_front.png" title="${esc(TD.UNITS[t].name)}" alt="">`).join('')}</div>
-        <div class="lv-meta">Волн: ${L.waves.length} · врагов: ${total}${L.waves.some(w => w.boss) ? ' · босс' : ''}</div>`;
-      b.onclick = () => { $('levelModal').hidden = true; TD.Sound.play('click'); TD.newGame(undefined, +id); };
-      list.appendChild(b);
-    }
-    $('levelModal').hidden = false;
-  };
-
+  // ---------------- Конец уровня ----------------
+  // Победа: звёзды (замок цел — 3, прочность выше 10 — 2, иначе 1) и путь дальше по карте.
   UI.showEnd = function (game, won) {
     const m = $('endModal');
     const c = $('endcard');
+    const res = won ? TD.Progress.award(game.level, game.castleHp) : null;
+    const next = won && TD.LEVELS[game.level + 1] ? game.level + 1 : null;
     c.className = 'endcard ' + (won ? 'win' : 'lose');
     c.innerHTML = `
       <h2>${won ? 'Крепость устояла!' : 'Замок пал'}</h2>
+      ${won ? `<div class="end-stars">${[0, 1, 2].map(q => `<span class="${q < res.stars ? 'on' : ''}">★</span>`).join('')}</div>
+      <div class="end-note">${res.gained ? (res.best > res.gained ? `Новый рекорд! +${res.gained} ★` : `+${res.gained} ★ в сокровищницу`) : res.best > res.stars ? `Лучший результат на этом уровне — ${res.best} ★` : ''}${next && res.best === res.stars && res.gained === res.stars ? ' · открыт уровень ' + next : ''}</div>` : ''}
       <p>${won ? `Все ${TD.WAVES} волн отбиты. Прочность замка: ${game.castleHp} / ${TD.CASTLE_HP}.` : `Гоблины прорвались на волне ${game.wave}.`}<br>
       Повержено врагов: ${game.stats.kills}, прорвалось: ${game.stats.leaked}.</p>
-      <div class="row"><button id="againBtn">↺ Эта же карта</button><button id="newBtn2">⟳ Новая карта</button><button id="lvBtn2">☰ Уровни</button>${won && TD.LEVELS[game.level + 1] ? '<button id="nextLvBtn">▶ Уровень ' + (game.level + 1) + '</button>' : ''}</div>`;
+      <div class="row"><button id="mapBtn2" class="primary">🗺 К карте</button><button id="againBtn">↺ Ещё раз</button></div>`;
     m.hidden = false;
-    $('lvBtn2').onclick = () => { m.hidden = true; UI.showLevels(); };
-    if ($('nextLvBtn')) $('nextLvBtn').onclick = () => { m.hidden = true; TD.newGame(undefined, game.level + 1); };
-    $('againBtn').onclick = () => { m.hidden = true; TD.newGame(game.seed, game.level); };
-    $('newBtn2').onclick = () => { m.hidden = true; TD.newGame(); };
+    $('mapBtn2').onclick = () => { m.hidden = true; TD.Sound.play('click'); TD.World.open({ select: next || game.level }); };
+    $('againBtn').onclick = () => { m.hidden = true; TD.newGame(undefined, game.level); };
   };
 })();

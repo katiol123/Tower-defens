@@ -117,7 +117,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
   $('waveBtn').addEventListener('click', () => { game.startWave(); });
   $('nwBtn').addEventListener('click', () => { game.startWave(); });
   $('newMapBtn').addEventListener('click', () => TD.newGame());
-  $('levelsBtn').addEventListener('click', () => UI.showLevels());
+  // Карта похода: во время боя можно вернуться к нему, после конца уровня — нет.
+  $('levelsBtn').addEventListener('click', () => {
+    TD.Sound.play('click');
+    TD.World.open({ select: UI.level, canReturn: game && game.phase !== 'won' && game.phase !== 'lost' });
+  });
   $('enemyModal').addEventListener('click', ev => { if (ev.target.hasAttribute('data-close')) UI.closeEnemy(); });
   document.querySelectorAll('#speed button').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
 
@@ -130,6 +134,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   window.addEventListener('keydown', ev => {
     const spellKey = { q: 'meteor', й: 'meteor', w: 'frost', ц: 'frost', e: 'chain', у: 'chain', r: 'masonry', к: 'masonry' }[ev.key.toLowerCase()];
+    // На карте похода игровые клавиши не работают; Esc закрывает карточку врага или возвращает к бою.
+    if (TD.World.isOpen()) {
+      if (ev.key === 'Escape') { if (UI.enemyOpen()) UI.closeEnemy(); else if (!$('wmBack').hidden) TD.World.close(); }
+      if (ev.key === 'Tab' || ev.key === ' ') ev.preventDefault();
+      return;
+    }
     if (ev.key === 'Escape') {
       if (UI.enemyOpen()) UI.closeEnemy();
       else { UI.selectPlacing(null); UI.selectTower(null); UI.selectSpell(null, true); }
@@ -155,7 +165,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (game) {
-      const sp = UI.enemyOpen() || UI.levelsOpen() ? 0 : speed;
+      const sp = UI.enemyOpen() || TD.World.isOpen() ? 0 : speed;
       acc += dt * sp;
       let steps = 0;
       while (acc >= TD.DT && steps < 12) { game.update(TD.DT); acc -= TD.DT; steps++; }
@@ -193,8 +203,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const q = qs.get('seed'), lv = +qs.get('level');
     TD.newGame(q !== null ? +q : undefined, lv || 1);
     resize();
-    // Выбор уровня в начале игры (?level=N — сразу нужный уровень).
-    if (!lv) UI.showLevels(true);
+    // В начале игры — карта похода (?level=N — сразу нужный уровень).
+    TD.World.init();
+    if (!lv) TD.World.open();
     requestAnimationFrame(frame);
   });
 })();

@@ -43,7 +43,7 @@
           <button data-speed="3" title="×3">▶▶▶</button>
         </div>
         <button class="btn-icon" id="soundBtn" title="Звук вкл/выкл (M)">🔊</button>
-        <button class="btn-ghost" id="levelsBtn" title="Выбрать уровень">☰ Уровни</button>
+        <button class="btn-ghost" id="levelsBtn" title="Карта похода">🗺 Карта</button>
         <button class="btn-ghost" id="newMapBtn" title="Сгенерировать новую карту">⟳ Новая карта</button>
       </div>
     </header>
@@ -100,6 +100,21 @@
       </div>
     </main>
 
+    <!-- ============ КАРТА ПОХОДА ============ -->
+    <div class="world" id="world" hidden>
+      <div class="wm-stage"><canvas id="wmCanvas"></canvas></div>
+      <aside class="wm-panel">
+        <div class="wm-head">
+          <div><div class="wm-kicker">Карта похода</div><h2>Земли гоблинов</h2></div>
+          <div class="wm-stars" title="Звёзды за пройденные уровни (лучшие результаты)">★ <b id="wmStars">0</b></div>
+        </div>
+        <button class="wm-back" id="wmBack" hidden>⟵ Вернуться к битве</button>
+        <div class="wm-loc" id="wmLoc"></div>
+        <div class="wm-treasury"><b>★ Сокровищница звёзд</b>Звёзды копятся за каждый пройденный уровень. Скоро за них можно будет покупать улучшения вышек и заклинаний и открывать новые вышки.</div>
+        <div class="wm-rules"><span>★★★</span>замок не получил урона<span>★★</span>прочность замка выше 10<span>★</span>победа</div>
+      </aside>
+    </div>
+
     <!-- ============ КАРТА ВРАГА ============ -->
     <div class="modal" id="enemyModal" hidden>
       <div class="modal-back" data-close></div>
@@ -107,15 +122,6 @@
     </div>
 
     <!-- ============ КОНЕЦ ИГРЫ ============ -->
-    <div class="modal" id="levelModal" hidden>
-      <div class="modal-back"></div>
-      <div class="levelcard">
-        <div class="lv-kicker">Тауэр-дефенс</div>
-        <h2>Выберите уровень</h2>
-        <div class="lv-list" id="levelList"></div>
-      </div>
-    </div>
-
     <div class="modal" id="endModal" hidden>
       <div class="modal-back"></div>
       <div class="endcard" id="endcard"></div>
@@ -126,9 +132,11 @@
   <script src="js/masks.js"></script>
   <script src="js/mapgen.js"></script>
   <script src="js/sim.js"></script>
+  <script src="js/progress.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/worldmap.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
