@@ -25,7 +25,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       card.dataset.id = def.id;
       card.style.setProperty('--tc', def.color);
       const row = (label, v, sub, pct, burst) =>
-        `<div class="ts"><span class="ts-l">${label}</span><div class="ts-bar${burst ? ' burst' : ''}"><i style="width:${pct}%"></i></div><b>${v}<small>${sub}</small></b></div>`;
+        `<div class="ts"><span class="ts-l">${label}</span><div class="ts-bar${burst ? ' burst' : ''}"><i style="width:${pct}%"></i></div><b class="ts-v">${v}</b><small class="ts-a">${sub}</small></div>`;
       card.innerHTML = `
         <div class="tc-top">
           <canvas class="tc-ico" width="116" height="116"></canvas>

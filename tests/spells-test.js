@@ -112,6 +112,31 @@ TD.enemySpeedPx = e => e.frozen ? 0 : origSpeed(e);
   check('во время выхода волны досрочно запускать нельзя', !g.canStartWave());
 }
 
+// --- Толпа в волне
+{
+  let withCrowd = 0, total = 0, bossCrowd = false, spacingOk = true, onePath = true, sizeOk = true;
+  for (let seed = 1; seed <= 600; seed++) {
+    const g = new TD.Game(seed);
+    g.wave = seed % TD.WAVES;      // 0..3 → запускаем волны 1..4 (4 — босс)
+    g.startWave();
+    const w = TD.waveDef(g.wave), q = g.spawnQueue, cr = q.filter(x => x.crowd);
+    if (w.boss) { if (cr.length) bossCrowd = true; continue; }
+    total++;
+    if (!cr.length) continue;
+    withCrowd++;
+    if (new Set(cr.map(x => x.path)).size !== 1) onePath = false;
+    if (cr.length < 5 || cr.length > Math.max(5, Math.round(w.count * 0.35)) + 1) sizeOk = false;
+    for (let i = 1; i < cr.length; i++) {
+      const tiles = (cr[i].at - cr[i - 1].at) * TD.F.enemySpeed(TD.UNITS[cr[i].type].stats.spd);
+      if (tiles < 0.8 - 1e-9 || tiles > 1.1 + 1e-9) spacingOk = false;
+    }
+  }
+  check('толпа примерно в половине обычных волн', Math.abs(withCrowd / total - 0.5) < 0.07, `${(withCrowd / total * 100).toFixed(1)}% из ${total}`);
+  check('в волне с боссом толпы нет', !bossCrowd);
+  check('толпа идёт по одной тропе, 25–35% волны (не меньше 5)', onePath && sizeOk);
+  check('между соседями в толпе 0,8–1,1 клетки — не впритык', spacingOk);
+}
+
 // --- Места силы: +30% к фактическому урону, дальности, скорострельности (у очереди — перезарядка)
 {
   const g = new TD.Game(10); g.gold = 1e6;

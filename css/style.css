@@ -227,10 +227,11 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .tprice { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; font-weight: 700; color: var(--gold-2); font-size: 15px; }
 .tprice .coin { width: 13px; height: 13px; }
 .tc-stats { display: flex; flex-direction: column; gap: 5px; margin-top: 9px; position: relative; }
-.ts { display: grid; grid-template-columns: 112px 1fr 118px; align-items: center; gap: 8px; font-size: 12px; }
+/* Колонки фиксированной ширины: параметры (1–20) и фактические значения стоят ровными столбцами во всех карточках */
+.ts { display: grid; grid-template-columns: 104px 1fr 50px 76px; align-items: center; column-gap: 8px; font-size: 12px; }
 .ts-l { color: var(--muted); white-space: nowrap; }
-.ts b { text-align: right; color: var(--ink); font-size: 12.5px; white-space: nowrap; }
-.ts b small { color: var(--dim); font-weight: 400; margin-left: 4px; font-size: 11px; }
+.ts-v { text-align: right; color: var(--ink); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ts-a { text-align: left; color: var(--dim); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ts-bar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
 .ts-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--tc), #fff6); }
 .ts-bar.burst i { background: repeating-linear-gradient(90deg, var(--tc) 0 3px, transparent 3px 5px); }

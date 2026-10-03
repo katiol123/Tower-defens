@@ -243,13 +243,28 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const w = TD.waveDef(this.wave);
     // Босс всегда идёт по самой длинной дорожке.
     const longest = this.map.paths.reduce((best, p) => p.route.length > this.map.paths[best].route.length ? p.id : best, 0);
+    // Толпа: в обычной волне с шансом 50% часть врагов (25–35%, не меньше 5) идёт подряд по одной тропе
+    // плотной группой — между соседями 0,8–1,1 клетки (не впритык), чтобы огонь и взрывы задевали многих.
+    let crowd = null;
+    if (!w.boss && this.rng() < TD.CROWD.chance) {
+      const size = Math.min(w.count, Math.max(TD.CROWD.min, Math.round(w.count * (TD.CROWD.share[0] + this.rng() * (TD.CROWD.share[1] - TD.CROWD.share[0])))));
+      crowd = { from: this.rng.int(0, w.count - size), size, path: this.rng.int(0, this.map.paths.length - 1) };
+    }
     let t = this.time + 0.4;
     for (let i = 0; i < w.count; i++) {
       const type = TD.WAVE_UNIT[w.units[i]];
-      const path = TD.UNITS[type].boss ? longest : i % this.map.paths.length;
-      this.spawnQueue.push({ at: t, path, type, wave: this.wave });
-      t += w.gap * (0.8 + this.rng() * 0.4);
+      const inCrowd = crowd && i >= crowd.from && i < crowd.from + crowd.size;
+      const path = TD.UNITS[type].boss ? longest : inCrowd ? crowd.path : i % this.map.paths.length;
+      this.spawnQueue.push({ at: t, path, type, wave: this.wave, crowd: !!inCrowd });
+      const nextInCrowd = crowd && i + 1 >= crowd.from && i + 1 < crowd.from + crowd.size;
+      if (inCrowd && nextInCrowd) {
+        // Шаг в толпе задаётся расстоянием: время = клетки / скорость идущего позади.
+        const nextType = TD.WAVE_UNIT[w.units[i + 1]];
+        const tiles = TD.CROWD.spacing[0] + this.rng() * (TD.CROWD.spacing[1] - TD.CROWD.spacing[0]);
+        t += tiles / TD.F.enemySpeed(TD.UNITS[nextType].stats.spd);
+      } else t += w.gap * (0.8 + this.rng() * 0.4);
     }
+    if (crowd) this.emit({ type: 'crowd', n: this.wave, size: crowd.size });
     this.phase = 'wave';
     this.countdown = 0;
     this.emit({ type: 'wave', n: this.wave });
