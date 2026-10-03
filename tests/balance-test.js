@@ -57,7 +57,11 @@ for (const id in res) {
   console.log(`${r.def.name.padEnd(16)} | ${r.dmg.toFixed(0).padStart(10)} | ${r.kills.toFixed(1).padStart(7)} | ${(r.hitRate * 100).toFixed(1).padStart(8)}% | ${a.dps.toFixed(1).padStart(9)} | ${String(r.def.price).padStart(11)} | ${String(fair).padStart(13)}`);
 }
 let ok = true;
+// Цены, поднятые сознательно выше расчётной: этот тест мерит одну вышку против гоблинов,
+// а в прохождениях уровней (особенно против Орка) Сокол оказался заметно сильнее остальных.
+const MANUAL = { falcon: 'поднята вручную по итогам прохождений уровней' };
 for (const id in res) {
+  if (MANUAL[id]) { console.log(`—    ${res[id].def.name}: цена ${res[id].def.price} (расчётная ${res[id].fair}) — ${MANUAL[id]}`); continue; }
   const dev = Math.abs(res[id].def.price - res[id].fair) / res[id].fair;
   if (dev > 0.15) { ok = false; console.log(`FAIL ${res[id].def.name}: цена ${res[id].def.price} отличается от расчётной ${res[id].fair} больше чем на 15%`); }
 }
