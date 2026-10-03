@@ -164,6 +164,50 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
   check('в ступоре тролль не пинает', !kickedInStupor);
 }
 
+// Безумный гоблин и уровень 2
+{
+  const m = TD.createUnit('madgoblin', TD.makeRng(31));
+  check('Безумный гоблин: выносливость 7 (145 здоровья), сила 4, скорость 9, техника 7',
+    m.stats.sta === 7 && m.hpMax === 145 && m.stats.str === 4 && m.stats.spd === 9 && m.stats.tech === 7 && m.perks.join() === 'warcry,axeblock');
+  const g = new TD.Game(41); g.immortalCastle = true;
+  let blocked = 0, firePass = true, magicPass = true;
+  for (let i = 0; i < 6000; i++) { m.hp = m.hpMax; g.damage(m, 2, null, 'phys'); if (m.hp === m.hpMax) blocked++; }
+  for (let i = 0; i < 300; i++) { m.hp = m.hpMax; g.damage(m, 2, null, 'fire'); if (m.hp === m.hpMax) firePass = false; m.hp = m.hpMax; g.damage(m, 2, null, 'magic'); if (m.hp === m.hpMax) magicPass = false; }
+  check('топор отбивает физический урон с шансом ≈35%', Math.abs(blocked / 6000 - 0.35) < 0.02, `${(blocked / 60).toFixed(1)}%`);
+  check('огонь и магию топор не отбивает', firePass && magicPass);
+  // Отвага: трусливый гоблин рядом с безумным не замедляется, далеко — замедляется
+  const g2 = new TD.Game(42); g2.immortalCastle = true;
+  const mad = TD.createUnit('madgoblin', g2.rng), near = TD.createUnit('goblin', g2.rng), far = TD.createUnit('goblin', g2.rng);
+  [[mad, 0.40], [near, 0.40], [far, 0.10]].forEach(([u, f]) => { g2.spawnEnemy(u, 0); u.dist = u.route.length * f; TD.placeEnemy(u); });
+  near.hp = far.hp = 10;
+  const R = TD.WARCRY.radius * TD.TILE;
+  const dNear = Math.hypot(near.x - mad.x, near.y - mad.y), dFar = Math.hypot(far.x - mad.x, far.y - mad.y);
+  const v0 = TD.F.enemySpeed(9) * TD.TILE;
+  g2.update(TD.DT);
+  check('рядом с безумным (в 4 клетках) «Трусливый» не действует', dNear <= R && Math.abs(TD.enemySpeedPx(near) - v0) < 1e-6);
+  check('вдали от безумного гоблин трусит (−30%)', dFar > R ? Math.abs(TD.enemySpeedPx(far) - v0 * 0.7) < 1e-6 : true, `расстояние ${(dFar / TD.TILE).toFixed(1)} кл`);
+  mad.hp = 10;
+  check('сам безумный не трусит', Math.abs(TD.enemySpeedPx(mad) - v0) < 1e-6);
+
+  // Состав волн уровня 2
+  TD.setLevel(2);
+  const w1 = TD.waveDef(1), w2 = TD.waveDef(2);
+  const idx = (w, c) => w.list.map((x, i) => x.code === c ? i : -1).filter(i => i >= 0);
+  const m1 = idx(w1, 'M'), m2 = idx(w2, 'M'), s2 = idx(w2, 'S');
+  check('уровень 2, волна 1: гоблины + 2 безумных — до середины и после середины',
+    w1.list.every(x => x.code === 'G' || x.code === 'M') && m1.length === 2 && m1[0] < w1.count / 2 && m1[1] > w1.count / 2, `позиции ${m1.join(', ')} из ${w1.count}`);
+  check('волна 2 на 40% длиннее первой', w2.count === Math.round(w1.count * 1.4), `${w1.count} → ${w2.count}`);
+  check('волна 2: 3 безумных и 2 шамана', m2.length === 3 && s2.length === 2);
+  check('первый шаман выходит вместе с первым безумным', s2[0] === m2[0] + 1 && w2.list[s2[0]].together);
+  const distTo = i => Math.min(...m2.map(j => Math.abs(i - j)));
+  check('второй шаман — дальше всего от безумных', distTo(s2[1]) >= 6, `до ближайшего безумного ${distTo(s2[1])} врагов`);
+  const gq = new TD.Game(43, { level: 2 }); gq.wave = 1; gq.startWave();
+  const q = gq.spawnQueue, si = q.findIndex(x => x.type === 'shaman');
+  check('в расписании первый шаман появляется в тот же момент, что и безумный', q[si - 1].type === 'madgoblin' && q[si - 1].at === q[si].at);
+  check('у уровня 2 нет босса, замок 20 и 500 золота', !TD.WAVE_LIST.some(w => w.boss) && gq.castleHp === 20 && TD.START_GOLD === 500);
+  TD.setLevel(1);
+}
+
 const MAPS = +(process.argv[2] || 100);
 console.log('\nПромахи по лютоволку (скорость 15), без перка и с «Серой молнией»:');
 for (const def of TD.TOWERS) {

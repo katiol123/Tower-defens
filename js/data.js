@@ -16,7 +16,8 @@ TD.SELL_RATE = 0.7;
 TD.GOBLIN_H = 50;
 TD.WOLFRIDER_H = 64;
 TD.SHAMAN_H = 54;
-TD.TROLL_H = 76;      // перк «Великан» увеличивает вдвое
+TD.TROLL_H = 76;
+TD.MADGOBLIN_H = 52;      // перк «Великан» увеличивает вдвое
 
 // ---------------------------------------------------------------------------
 // Формулы. Все параметры вышек и врагов — целые от 1 до 20.
@@ -141,6 +142,8 @@ TD.PERKS = {
   frenzy:   { type: 'rare', icon: '🍄', name: 'Грибное безумие', desc: 'Появляется в ярости: +250 к макс. здоровью, +5 к скорости и силе, 50% сопротивления физическому урону (огонь и магия проходят полностью), иммунитет к негативным эффектам. Ярость спадает навсегда, если 10 с не получал урона.' },
   giant:    { type: 'neg', icon: '🏔️', name: 'Великан', desc: 'По такому здоровяку очень сложно промахнуться.' },
   dumb:     { type: 'neg', icon: '💫', name: 'Тупоголовый', desc: 'Каждые 5 с (пока не в ступоре) с шансом 25% впадает в ступор на 4 с и стоит на месте.' },
+  warcry:   { type: 'pos', icon: '🪓', name: 'Безумная отвага', desc: 'Сам никогда не трусит и поднимает боевой дух гоблинов в радиусе 4 клеток: их «Трусливый» не действует.' },
+  axeblock: { type: 'pos', icon: '🛡️', name: 'Тяжёлый топор', desc: 'С шансом 35% отбивает топором физический урон: попадание не наносит урона. Огонь и магию не отбивает.' },
   nest:     { type: 'rare', icon: '🪺', name: 'Гоблинское гнездо', desc: 'Каждые 10 с с него спрыгивают 5 гоблинов — часть спереди, часть сзади. Гоблина, пробегающего сквозь тролля, он с шансом 25% пинает насмерть (если не в ступоре).' },
 };
 // Параметры перков шамана
@@ -150,6 +153,9 @@ TD.FRENZY = { hp: 250, spd: 5, str: 5, calm: 10, resist: 0.5 };
 TD.GIANT = { size: 2 };
 TD.DUMB = { every: 5, chance: 0.25, stun: 4 };
 TD.NEST = { every: 10, count: 5, kick: 0.25 };
+// Параметры перков безумного гоблина
+TD.WARCRY = { radius: 4 };
+TD.AXEBLOCK = { chance: 0.35 };
 TD.PERK_TECH = { pos: 2, rare: 5, neg: -2 };
 TD.PERK_TYPE_LABEL = { pos: 'Позитивный', rare: 'Большой', neg: 'Негативный' };
 
@@ -166,6 +172,10 @@ TD.UNITS = {
   shaman: {
     name: 'Гоблин-шаман', sprite: 'shaman', height: TD.SHAMAN_H,
     stats: { sta: 5, str: 1, spd: 7 }, perks: ['spores', 'frenzy'],
+  },
+  madgoblin: {
+    name: 'Безумный гоблин', sprite: 'madgoblin', height: TD.MADGOBLIN_H,
+    stats: { sta: 7, str: 4, spd: 9 }, perks: ['warcry', 'axeblock'],
   },
   troll: {
     name: 'Тролль-мусорщик', sprite: 'troll', height: TD.TROLL_H, boss: true, reward: 150,
@@ -190,14 +200,39 @@ TD.GOBLIN_LAST = ['Костеглод', 'Грязнолап', 'Пнёвый', '�
   'Рваное Ухо', 'Жабоед', 'Сажевый', 'Червивый', 'Трёхпалый', 'Лысый', 'Кочкарь', 'Дубинщик', 'Болотник',
   'Косой', 'Громкоглот', 'Сухопятый', 'Злыдень'];
 
-// Волны: порядок появления врагов (G — гоблин, W — гоблин на лютоволке, S — шаман), интервал и награда.
-TD.WAVE_LIST = [
-  { units: 'G'.repeat(28), gap: 0.7, reward: 60 },
-  { units: 'G'.repeat(24) + 'WGWGGWGW'.repeat(2), gap: 0.65, reward: 100 },
-  { units: 'GGSGGWGGSGW' + 'GWGGWGWGGWGWGGWGGWGW' + 'GGSWGGWGSWGG' + 'WGWWGGW', gap: 0.6, reward: 150 },
-  { units: 'B', gap: 1, reward: 0, boss: true },
-];
-TD.WAVES = TD.WAVE_LIST.length;
+// ---------------------------------------------------------------------------
+// Уровни и волны. units — порядок появления: G — гоблин, W — гоблин на лютоволке, S — шаман,
+// M — безумный гоблин, B — тролль-босс. «&» перед буквой — выходит одновременно с предыдущим.
+// ---------------------------------------------------------------------------
+TD.LEVELS = {
+  1: {
+    name: 'Крепость на распутье', sub: 'Уровень 1 · испытание',
+    desc: 'Гоблины, наездники на лютоволках, шаманы и Тролль-мусорщик.',
+    waves: [
+      { units: 'G'.repeat(28), gap: 0.7, reward: 60 },
+      { units: 'G'.repeat(24) + 'WGWGGWGW'.repeat(2), gap: 0.65, reward: 100 },
+      { units: 'GGSGGWGGSGW' + 'GWGGWGWGGWGWGGWGGWGW' + 'GGSWGGWGSWGG' + 'WGWWGGW', gap: 0.6, reward: 150 },
+      { units: 'B', gap: 1, reward: 0, boss: true },
+    ],
+  },
+  2: {
+    name: 'Безумный рубеж', sub: 'Уровень 2',
+    desc: 'Безумные гоблины с топорами воодушевляют остальных, им на подмогу — шаманы.',
+    waves: [
+      // 30 врагов: первый безумный — между началом и серединой, второй — между серединой и концом.
+      { units: 'G'.repeat(8) + 'M' + 'G'.repeat(13) + 'M' + 'G'.repeat(7), gap: 0.7, reward: 60 },
+      // На 40% длиннее (42 врага): 3 безумных; первый шаман выходит вместе с первым безумным,
+      // второй — посередине между вторым и третьим безумными, дальше всего от них.
+      { units: 'G'.repeat(6) + 'M&S' + 'G'.repeat(13) + 'M' + 'G'.repeat(6) + 'S' + 'G'.repeat(6) + 'M' + 'G'.repeat(6), gap: 0.7, reward: 100 },
+    ],
+  },
+};
+TD.setLevel = function (n) {
+  TD.LEVEL = TD.LEVELS[n] ? n : 1;
+  TD.WAVE_LIST = TD.LEVELS[TD.LEVEL].waves;
+  TD.WAVES = TD.WAVE_LIST.length;
+};
+TD.setLevel(1);
 // Толпа в обычной волне: шанс, доля врагов волны, минимум, расстояние между соседями (в клетках).
 TD.CROWD = { chance: 0.5, share: [0.25, 0.35], min: 5, spacing: [0.8, 1.1] };
 // Следующая волна выходит через столько секунд после появления последнего врага предыдущей.
@@ -234,8 +269,15 @@ TD.SPELLS = [
 ];
 TD.SPELL = {};
 TD.SPELLS.forEach(s => { TD.SPELL[s.id] = s; });
-TD.WAVE_UNIT = { G: 'goblin', W: 'wolfrider', S: 'shaman', B: 'troll' };
+TD.WAVE_UNIT = { G: 'goblin', W: 'wolfrider', S: 'shaman', M: 'madgoblin', B: 'troll' };
+// Описание волны n текущего уровня; list — разобранный порядок: [{ code, type, together }].
 TD.waveDef = function (n) {
   const w = TD.WAVE_LIST[n - 1];
-  return Object.assign({ count: w.units.length }, w);
+  const list = [];
+  for (let i = 0; i < w.units.length; i++) {
+    const together = w.units[i] === '&';
+    if (together) i++;
+    list.push({ code: w.units[i], type: TD.WAVE_UNIT[w.units[i]], together });
+  }
+  return Object.assign({ count: list.length, list }, w);
 };

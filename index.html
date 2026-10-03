@@ -16,8 +16,8 @@
       <div class="brand">
         <div class="brand-mark">♜</div>
         <div>
-          <div class="brand-kicker">Уровень 1 · испытание</div>
-          <h1>Крепость на распутье</h1>
+          <div class="brand-kicker" id="brandSub">Уровень 1 · испытание</div>
+          <h1 id="brandName">Крепость на распутье</h1>
         </div>
       </div>
 
@@ -43,6 +43,7 @@
           <button data-speed="3" title="×3">▶▶▶</button>
         </div>
         <button class="btn-icon" id="soundBtn" title="Звук вкл/выкл (M)">🔊</button>
+        <button class="btn-ghost" id="levelsBtn" title="Выбрать уровень">☰ Уровни</button>
         <button class="btn-ghost" id="newMapBtn" title="Сгенерировать новую карту">⟳ Новая карта</button>
       </div>
     </header>
@@ -106,6 +107,15 @@
     </div>
 
     <!-- ============ КОНЕЦ ИГРЫ ============ -->
+    <div class="modal" id="levelModal" hidden>
+      <div class="modal-back"></div>
+      <div class="levelcard">
+        <div class="lv-kicker">Тауэр-дефенс</div>
+        <h2>Выберите уровень</h2>
+        <div class="lv-list" id="levelList"></div>
+      </div>
+    </div>
+
     <div class="modal" id="endModal" hidden>
       <div class="modal-back"></div>
       <div class="endcard" id="endcard"></div>

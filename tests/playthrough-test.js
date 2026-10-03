@@ -3,6 +3,7 @@
 // но не тривиален. Запуск: node tests/playthrough-test.js [игр]
 const TD = require('./load');
 const GAMES = +(process.argv[2] || 40);
+const LEVEL = +(process.argv[3] || 1);
 
 function coverage(game, def, x, y) {
   const R = TD.F.range(def.stats.range) * TD.TILE;
@@ -57,7 +58,7 @@ function castSpells(game) {
 }
 
 function play(seed, order, spells) {
-  const game = new TD.Game(seed);
+  const game = new TD.Game(seed, { level: LEVEL });
   let k = 0, bossKilled = false, tick = 0;
   const em = game.emit.bind(game);
   game.emit = ev => { if (ev.type === 'death' && ev.e.boss) bossKilled = true; em(ev); };

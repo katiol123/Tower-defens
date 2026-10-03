@@ -32,9 +32,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
     UI.positionTowerPop(view);
   }
 
-  TD.newGame = function (seed) {
+  TD.newGame = function (seed, level) {
     if (seed === undefined) seed = (Math.random() * 1e9) | 0;
-    game = new TD.Game(seed, { rng: TD.makeRng((Math.random() * 1e9) | 0) });
+    UI.level = level || UI.level || 1;
+    game = new TD.Game(seed, { rng: TD.makeRng((Math.random() * 1e9) | 0), level: UI.level });
+    const L = TD.LEVELS[UI.level];
+    $('brandSub').textContent = L.sub;
+    $('brandName').textContent = L.name;
+    document.title = L.name;
     UI.game = game;
     UI.selectPlacing(null);
     UI.selectTower(null);
@@ -47,7 +52,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const n = game.map.paths.length;
     const merges = game.map.paths.filter(p => p.mergeInto >= 0).length;
     $('seedLbl').textContent = `Карта #${seed} · дорожек: ${n}${merges ? ` · слияний: ${merges}` : ''}`;
-    UI.banner('Уровень 1', `${n === 1 ? 'Одна тропа' : n === 2 ? 'Две тропы' : 'Три тропы'} ведут к замку. Стройте вышки и жмите «В бой!»`, 3200);
+    UI.banner(`Уровень ${UI.level} · ${L.name}`, `${n === 1 ? 'Одна тропа' : n === 2 ? 'Две тропы' : 'Три тропы'} ведут к замку. Стройте вышки и жмите «В бой!»`, 3200);
     UI.updateHud(game);
   };
 
@@ -111,6 +116,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   $('waveBtn').addEventListener('click', () => { game.startWave(); });
   $('nwBtn').addEventListener('click', () => { game.startWave(); });
   $('newMapBtn').addEventListener('click', () => TD.newGame());
+  $('levelsBtn').addEventListener('click', () => UI.showLevels());
   $('enemyModal').addEventListener('click', ev => { if (ev.target.hasAttribute('data-close')) UI.closeEnemy(); });
   document.querySelectorAll('#speed button').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
 
@@ -148,7 +154,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (game) {
-      const sp = UI.enemyOpen() ? 0 : speed;
+      const sp = UI.enemyOpen() || UI.levelsOpen() ? 0 : speed;
       acc += dt * sp;
       let steps = 0;
       while (acc >= TD.DT && steps < 12) { game.update(TD.DT); acc -= TD.DT; steps++; }
@@ -182,9 +188,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
   UI.buildSpells();
   TD.loadSprites().then(() => {
     resize();
-    const q = new URLSearchParams(location.search).get('seed');
-    TD.newGame(q !== null ? +q : undefined);
+    const qs = new URLSearchParams(location.search);
+    const q = qs.get('seed'), lv = +qs.get('level');
+    TD.newGame(q !== null ? +q : undefined, lv || 1);
     resize();
+    // Выбор уровня в начале игры (?level=N — сразу нужный уровень).
+    if (!lv) UI.showLevels(true);
     requestAnimationFrame(frame);
   });
 })();

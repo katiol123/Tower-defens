@@ -427,3 +427,21 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .spell-tip h4 { margin: 0 0 4px; font-family: var(--font-title); font-weight: 400; color: #cfe6ff; font-size: 16px; }
 .spell-tip .st-meta { color: #9fd0ff; margin-bottom: 5px; font-size: 12px; }
 .field.casting #cv { cursor: none; }
+
+/* ================= LEVEL SELECT ================= */
+.levelcard { position: relative; width: min(820px, calc(100vw - 32px)); padding: 26px 28px 28px; border-radius: 22px;
+  border: 1px solid var(--line-strong); background: linear-gradient(160deg, #2c2219, #16110c);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .7); animation: cardIn .3s; text-align: center; }
+.lv-kicker { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.levelcard h2 { margin: 2px 0 18px; font-family: var(--font-title); font-weight: 400; font-size: 30px; color: var(--gold-2); }
+.lv-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.lv { text-align: left; padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.015)); transition: transform .15s, border-color .15s, box-shadow .15s; }
+.lv:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: 0 10px 30px -10px rgba(232, 185, 87, .5); }
+.lv-num { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.lv-name { font-family: var(--font-title); font-size: 22px; color: var(--ink); margin: 2px 0 6px; }
+.lv-desc { font-size: 13px; color: var(--muted); min-height: 36px; }
+.lv-foes { display: flex; gap: 6px; margin: 12px 0 8px; }
+.lv-foes img { height: 46px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.5)); }
+.lv-meta { font-size: 12px; color: var(--dim); }
+.lv-cur { display: inline-block; margin-left: 6px; font-size: 10px; padding: 1px 7px; border-radius: 8px; background: rgba(232,185,87,.18); color: var(--gold); letter-spacing: .08em; }

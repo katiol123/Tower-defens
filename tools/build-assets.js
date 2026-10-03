@@ -34,6 +34,12 @@ const UNITS = {
     w: 620, h: 880, x: { front: 200, side: 200, back: 200 }, y: { front: 75, side: 35, back: 36 },
     foot: 870, sideFaces: 'right',
   },
+  madgoblin: {
+    // Исходники 1600×1600 с розовым фоном под прозрачностью — края очищаются от розового (matte).
+    src: v => `assets/source/madgoblin_${v}.png`,
+    w: 1460, h: 1440, x: { front: 100, side: 100, back: 100 }, y: { front: 80, side: 80, back: 80 },
+    foot: 1428, sideFaces: 'right', matte: [255, 0, 255], cell: 28, scale: 0.19,
+  },
 };
 
 (async () => {
@@ -45,7 +51,7 @@ const UNITS = {
     for (const v of VIEWS) {
       const src = fs.readFileSync(path.join(ROOT, U.src(v))).toString('base64');
       const CROP = { x: U.x[v], y: U.y[v], w: U.w, h: U.h };
-      const res = await page.evaluate(async ({ src, CROP, CELL, OUT_SCALE }) => {
+      const res = await page.evaluate(async ({ src, CROP, CELL, OUT_SCALE, MATTE }) => {
         const img = new Image();
         img.src = 'data:image/png;base64,' + src;
         await img.decode();
@@ -53,7 +59,18 @@ const UNITS = {
         c.width = CROP.w; c.height = CROP.h;
         const x = c.getContext('2d');
         x.drawImage(img, -CROP.x, -CROP.y);
-        const px = x.getImageData(0, 0, CROP.w, CROP.h).data;
+        const id = x.getImageData(0, 0, CROP.w, CROP.h);
+        const px = id.data;
+        if (MATTE) {
+          // Снимаем подмешанный цвет фона с полупрозрачных краёв: c = a·fg + (1 − a)·bg → fg = (c − (1 − a)·bg) / a.
+          for (let i = 0; i < px.length; i += 4) {
+            const a = px[i + 3] / 255;
+            if (a <= 0 || a >= 0.98) continue;
+            if (a < 0.15) { px[i + 3] = 0; continue; }
+            for (let k = 0; k < 3; k++) px[i + k] = Math.max(0, Math.min(255, Math.round((px[i + k] - (1 - a) * MATTE[k]) / a)));
+          }
+          x.putImageData(id, 0, 0);
+        }
         const gw = Math.ceil(CROP.w / CELL), gh = Math.ceil(CROP.h / CELL);
         const rows = [];
         for (let gy = 0; gy < gh; gy++) {
@@ -74,12 +91,12 @@ const UNITS = {
         ox.imageSmoothingQuality = 'high';
         ox.drawImage(c, 0, 0, o.width, o.height);
         return { rows, gw, gh, png: o.toDataURL('image/png').split(',')[1] };
-      }, { src, CROP, CELL, OUT_SCALE });
+      }, { src, CROP, CELL: U.cell || CELL, OUT_SCALE: U.scale || OUT_SCALE, MATTE: U.matte || null });
       fs.writeFileSync(path.join(ROOT, `assets/${unit}_${v}.png`), Buffer.from(res.png, 'base64'));
       masks[v] = res.rows;
       console.log(unit, v, res.gw + '×' + res.gh, 'cells');
     }
-    sprites[unit] = { w: U.w, h: U.h, cell: CELL, foot: +(U.foot / U.h).toFixed(4), sideFaces: U.sideFaces, masks };
+    sprites[unit] = { w: U.w, h: U.h, cell: U.cell || CELL, foot: +(U.foot / U.h).toFixed(4), sideFaces: U.sideFaces, masks };
   }
   await browser.close();
   const out = '// Сгенерировано tools/build-assets.js — не редактировать вручную.\n' +

@@ -169,7 +169,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const w = TD.waveDef(ev.n);
         const n = ch => (w.units.match(new RegExp(ch, 'g')) || []).length;
         if (w.boss) UI.banner('Босс: Тролль-мусорщик', 'На нём живут гоблины. Не дайте ему дойти до замка!', 3000);
-        else UI.banner(`Волна ${ev.n}`, [`${n('G')} гоблинов`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
+        else UI.banner(`Волна ${ev.n}`, [`${n('G')} гоблинов`, n('M') && `${n('M')} безумных`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
       } else if (ev.type === 'waveEnd' && ev.n < TD.WAVES) {
         UI.banner(`Волна ${ev.n} отбита!`, `+${ev.reward} золота`, 1800);
       } else if (ev.type === 'early') {
@@ -323,6 +323,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (dead && e.leaked) { const s = card.querySelector('.ec-stamp'); s.hidden = false; s.textContent = 'ПРОРВАЛСЯ'; }
     const status = card.querySelector('.ec-status');
     const extra = [];
+    if (e.brave && e.perks.includes('coward')) extra.push('🪓 Воодушевлён безумцем — не трусит');
+    if (e.blocks) extra.push(`🛡️ Отбито топором: <b>${e.blocks}</b>`);
     if (e.slowT > 0) extra.push(`❄️ Скован льдом · ещё <b>${fmt(e.slowT, 1)} с</b>`);
     if (e.burnT > 0) extra.push(`🔥 Горит · ещё <b>${fmt(e.burnT, 1)} с</b>`);
     if (e.stupor > 0) {
@@ -416,6 +418,29 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
 
   // ---------------- Конец игры ----------------
+  // ---------------- Выбор уровня ----------------
+  UI.levelsOpen = () => !$('levelModal').hidden;
+  UI.showLevels = function () {
+    const list = $('levelList');
+    list.innerHTML = '';
+    for (const id of Object.keys(TD.LEVELS)) {
+      const L = TD.LEVELS[id];
+      const types = [];
+      L.waves.forEach(w => { for (const ch of w.units) if (TD.WAVE_UNIT[ch] && !types.includes(TD.WAVE_UNIT[ch])) types.push(TD.WAVE_UNIT[ch]); });
+      const total = L.waves.reduce((s, w) => s + w.units.replace(/&/g, '').length, 0);
+      const b = document.createElement('button');
+      b.className = 'lv';
+      b.innerHTML = `<div class="lv-num">Уровень ${id}${+id === UI.level ? '<span class="lv-cur">сейчас</span>' : ''}</div>
+        <div class="lv-name">${esc(L.name)}</div>
+        <div class="lv-desc">${esc(L.desc)}</div>
+        <div class="lv-foes">${types.map(t => `<img src="assets/${TD.UNITS[t].sprite}_front.png" title="${esc(TD.UNITS[t].name)}" alt="">`).join('')}</div>
+        <div class="lv-meta">Волн: ${L.waves.length} · врагов: ${total}${L.waves.some(w => w.boss) ? ' · босс' : ''}</div>`;
+      b.onclick = () => { $('levelModal').hidden = true; TD.Sound.play('click'); TD.newGame(undefined, +id); };
+      list.appendChild(b);
+    }
+    $('levelModal').hidden = false;
+  };
+
   UI.showEnd = function (game, won) {
     const m = $('endModal');
     const c = $('endcard');
@@ -424,9 +449,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
       <h2>${won ? 'Крепость устояла!' : 'Замок пал'}</h2>
       <p>${won ? `Все ${TD.WAVES} волн отбиты. Прочность замка: ${game.castleHp} / ${TD.CASTLE_HP}.` : `Гоблины прорвались на волне ${game.wave}.`}<br>
       Повержено врагов: ${game.stats.kills}, прорвалось: ${game.stats.leaked}.</p>
-      <div class="row"><button id="againBtn">↺ Эта же карта</button><button id="newBtn2">⟳ Новая карта</button></div>`;
+      <div class="row"><button id="againBtn">↺ Эта же карта</button><button id="newBtn2">⟳ Новая карта</button><button id="lvBtn2">☰ Уровни</button>${won && TD.LEVELS[game.level + 1] ? '<button id="nextLvBtn">▶ Уровень ' + (game.level + 1) + '</button>' : ''}</div>`;
     m.hidden = false;
-    $('againBtn').onclick = () => { m.hidden = true; TD.newGame(game.seed); };
+    $('lvBtn2').onclick = () => { m.hidden = true; UI.showLevels(); };
+    if ($('nextLvBtn')) $('nextLvBtn').onclick = () => { m.hidden = true; TD.newGame(undefined, game.level + 1); };
+    $('againBtn').onclick = () => { m.hidden = true; TD.newGame(game.seed, game.level); };
     $('newBtn2').onclick = () => { m.hidden = true; TD.newGame(); };
   };
 })();

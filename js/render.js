@@ -515,6 +515,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.beginPath(); ctx.ellipse(e.x, e.y + 13 * e.size, 17 * e.size + pulse * 3, 7 * e.size + pulse, 0, 0, TAU); ctx.stroke();
       ctx.restore();
     }
+    if (e.perks.includes('warcry')) {
+      // Радиус «Безумной отваги» — едва заметный пунктир
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,140,60,0.16)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 8]); ctx.lineDashOffset = -o.t * 12;
+      ctx.beginPath(); ctx.arc(e.x, e.y, TD.WARCRY.radius * T, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
     if (e.frenzy) {
       // Аура «Грибного безумия»: пульсирующее пламя под ногами и вокруг тела
       const k = 0.7 + Math.sin(o.t * 10 + e.id) * 0.3;
@@ -737,6 +744,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const cx = (c.x + c.w / 2) * T, cy = (c.y + 0.6) * T;
         if (ev.type === 'repair') spawnFx({ t: 'text', x: cx, y: cy - 30, s: `+${ev.v} ♜`, col: '#9dff8a', life: 1.4, big: true });
         for (let i = 0; i < 14; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: cx + Math.cos(q) * 40, y: cy + 30 + Math.sin(q) * 20, vx: Math.cos(q) * 20, vy: -15, life: 0.8, s: 5 + Math.random() * 5, light: true }); }
+      } else if (ev.type === 'block') {
+        spawnFx({ t: 'text', x: ev.x, y: ev.y - 6, s: 'Блок!', col: '#d9e2ea', life: 0.8 });
+        for (let i = 0; i < 6; i++) { const q = Math.random() * TAU; spawnFx({ t: 'spark', x: ev.x, y: ev.y + 12, vx: Math.cos(q) * 110, vy: Math.sin(q) * 110, life: 0.22, col: '#f2f6ff' }); }
       } else if (ev.type === 'kick') {
         const e = ev.e, dir = e.x < ev.troll.x ? -1 : 1;
         spawnFx({ t: 'flyer', x: e.x, y: e.y, noDamp: true, e: { sprite: e.sprite, height: e.height, view: e.view, flip: e.flip, size: e.size, x: e.x, y: e.y, bob: 0 }, vx: dir * (160 + Math.random() * 80), vy: -260 - Math.random() * 80, spin: dir * (10 + Math.random() * 6), life: 1.1 });

@@ -116,7 +116,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
   TD.setFrenzy = setFrenzy;
   // Иммунитет к негативным эффектам (пока это негативные перки вроде «Трусливого»).
   TD.isImmune = e => !!e.frenzy;
-  const negActive = (e, id) => e.perks.includes(id) && !TD.isImmune(e);
+  // «Безумная отвага»: трусость блокируется у самого безумного и у гоблинов рядом с ним (e.brave).
+  const negActive = (e, id) => e.perks.includes(id) && !TD.isImmune(e) && !(id === 'coward' && (e.brave || e.perks.includes('warcry')));
   TD.createGoblin = (rng, opts) => TD.createUnit('goblin', rng, opts);
 
   function speedMult(e) {
@@ -156,6 +157,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
   TD.Game = function (seed, opts) {
     opts = opts || {};
     this.seed = seed;
+    this.level = opts.level || TD.LEVEL || 1;
+    TD.setLevel(this.level);
     this.rng = opts.rng || TD.makeRng((seed ^ 0x9e3779b9) >>> 0);
     this.map = opts.map || TD.generateMap(seed);
     this.enemies = [];
@@ -252,14 +255,16 @@ var TD = globalThis.TD || (globalThis.TD = {});
     }
     let t = this.time + 0.4;
     for (let i = 0; i < w.count; i++) {
-      const type = TD.WAVE_UNIT[w.units[i]];
+      const type = w.list[i].type;
       const inCrowd = crowd && i >= crowd.from && i < crowd.from + crowd.size;
       const path = TD.UNITS[type].boss ? longest : inCrowd ? crowd.path : i % this.map.paths.length;
       this.spawnQueue.push({ at: t, path, type, wave: this.wave, crowd: !!inCrowd });
       const nextInCrowd = crowd && i + 1 >= crowd.from && i + 1 < crowd.from + crowd.size;
-      if (inCrowd && nextInCrowd) {
+      if (i + 1 < w.count && w.list[i + 1].together) {
+        // «&»: следующий выходит одновременно с этим (по соседней тропе, если троп несколько).
+      } else if (inCrowd && nextInCrowd) {
         // Шаг в толпе задаётся расстоянием: время = клетки / скорость идущего позади.
-        const nextType = TD.WAVE_UNIT[w.units[i + 1]];
+        const nextType = w.list[i + 1].type;
         const tiles = TD.CROWD.spacing[0] + this.rng() * (TD.CROWD.spacing[1] - TD.CROWD.spacing[0]);
         t += tiles / TD.F.enemySpeed(TD.UNITS[nextType].stats.spd);
       } else t += w.gap * (0.8 + this.rng() * 0.4);
@@ -325,6 +330,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (!e.alive) return 0;
     // «Грибное безумие» режет только физический урон; огонь и магия проходят полностью.
     if (e.frenzy && type === 'phys') dmg *= 1 - TD.FRENZY.resist;
+    // «Тяжёлый топор»: шанс отбить физический урон целиком.
+    if (type === 'phys' && e.perks.includes('axeblock') && this.rng() < TD.AXEBLOCK.chance) {
+      e.hitsTaken++;
+      e.calmT = 0;
+      e.blocks = (e.blocks || 0) + 1;
+      this.emit({ type: 'block', e, x: e.x, y: e.y - 30 * e.size });
+      return 0;
+    }
     dmg = Math.round(dmg * 100) / 100;
     e.calmT = 0;
     e.hitsTaken++;
@@ -618,8 +631,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
       }
     }
     // Мана копится постоянно.
-    this.mana = Math.min(TD.MANA.max, this.mana + TD.MANA.regen * dt);
+    // Мана копится только после нажатия «В бой!».
+    if (this.phase !== 'build') this.mana = Math.min(TD.MANA.max, this.mana + TD.MANA.regen * dt);
     this.updateSpells(dt);
+    // «Безумная отвага»: кто стоит в радиусе живого безумного гоблина, тот не трусит.
+    const madmen = this.enemies.filter(m => m.alive && m.perks.includes('warcry'));
+    const R = TD.WARCRY.radius * T();
+    for (const e of this.enemies) e.brave = madmen.some(m => m !== e && Math.hypot(m.x - e.x, m.y - e.y) <= R);
     // Движение врагов
     for (const e of this.enemies) {
       if (!e.alive) continue;

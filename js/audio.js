@@ -134,13 +134,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
     },
     repair() { for (let i = 0; i < 3; i++) { noise(0.06, 0.7, 'bandpass', 1800, 900, { q: 4, delay: i * 0.13 }); tone('square', 520, 480, 0.06, 0.14, { lp: 2000, delay: i * 0.13 }); } },
     early() { [784, 988, 1175, 1568].forEach((f, i) => tone('sine', f, f, 0.12, 0.1, { delay: i * 0.05 })); },
+    // Блок топором: металлический лязг
+    block() { tone('square', 1250, 1150, 0.12, 0.08, { lp: 5000 }); tone('triangle', 2400, 2300, 0.2, 0.06); noise(0.06, 0.3, 'highpass', 4000); },
     calm() { tone('triangle', 330, 165, 0.6, 0.12, { attack: 0.05 }); },
     dismount() { tone('sawtooth', 520, 880, 0.35, 0.09, { lp: 1600, attack: 0.08 }); tone('sawtooth', 880, 380, 0.7, 0.09, { lp: 1400, delay: 0.35 }); },
     click() { tone('sine', 900, 700, 0.04, 0.08); },
     whoosh() { noise(0.25, 0.14, 'bandpass', 500, 2200, { q: 1.2 }); },
     deny() { tone('square', 220, 180, 0.12, 0.07, { lp: 1200 }); tone('square', 165, 140, 0.16, 0.07, { lp: 1200, delay: 0.1 }); },
   };
-  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000, meteor: 100, repair: 300 };
+  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000, meteor: 100, repair: 300, block: 70 };
 
   // Звуки из файлов (assets/audio). Обычный HTML-аудио работает и при открытии index.html с диска.
   // Громкость выровнена: лёд записан тише остальных.
@@ -218,6 +220,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'spores': play('spores'); break;
           case 'calm': play('calm'); break;
           case 'nest': play('nest'); break;
+          case 'block': play('block'); break;
           case 'meteorCast': play('meteorCast'); break;
           case 'meteor': if (!playFile('meteor')) play('meteor'); break;
           case 'frost': if (!playFile('frost')) play('frost'); break;
