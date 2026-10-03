@@ -88,7 +88,7 @@ TD.TOWERS = [
   },
 ];
 // Цены подобраны тестом tests/balance-test.js (см. README).
-TD.TOWER_PRICES = { rattle: 70, thunder: 145, dragon: 80, falcon: 140 };
+TD.TOWER_PRICES = { rattle: 70, thunder: 130, dragon: 80, falcon: 140 };
 TD.TOWERS.forEach(t => { t.price = TD.TOWER_PRICES[t.id]; });
 
 // Типы урона (позже будут другие).
