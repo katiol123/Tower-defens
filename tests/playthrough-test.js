@@ -6,6 +6,8 @@ const GAMES = +(process.argv[2] || 40);
 const LEVEL = +(process.argv[3] || 1);
 // CRYSTALS=1 — с тёмными кристаллами (по умолчанию тесты без них).
 if (process.env.CRYSTALS) TD.NO_CRYSTALS = false;
+// UPGRADES=max — все улучшения за звёзды куплены (3 ступени у вышек и заклинаний).
+if (process.env.UPGRADES === 'max') { const r = {}; for (const id in TD.UPGRADES) r[id] = 3; TD.applyUpgrades(r, { spire: true, frost: true, bell: true }); }
 
 function coverage(game, def, x, y) {
   const R = TD.F.range(def.stats.range) * TD.TILE;

@@ -103,7 +103,7 @@ TD.TOWERS = [
   {
     id: 'frost', name: 'Морозный тотем', title: 'Ледяной идол',
     stats: { dmg: null, rate: null, acc: null, range: 6 }, dmgType: null,
-    aura: 'frost',
+    aura: 'frost', slow: 0.3,
     perk: { icon: '❄️', name: 'Вечная стужа', desc: 'Не стреляет. Все враги в радиусе действия замедлены на 30%, пока находятся в нём. Несколько тотемов не складываются; с «Ледяной хваткой» действует более сильное замедление.' },
     proj: { kind: 'none', r: 0, speed: 0 },
     color: '#8fe3ff', price: 0,
@@ -111,16 +111,14 @@ TD.TOWERS = [
   {
     id: 'bell', name: 'Дозорный колокол', title: 'Сторожевая вышка',
     stats: { dmg: null, rate: null, acc: null, range: 8 }, dmgType: null,
-    aura: 'bell',
+    aura: 'bell', buff: { acc: 2, rate: 2, reload: 0.5 }, buffRadius: 1,
     perk: { icon: '👁️', name: 'Зоркий дозор', desc: 'Не стреляет. Воры в радиусе действия теряют «Скрытность» — вышки их видят. Выйдя из радиуса, вор снова невидим.' },
     perk2: { icon: '🔔', name: 'Боевой набат', desc: 'Соседние вышки (в радиусе 1 клетки, включая диагонали): +2 к точности и +2 к скорострельности (у Трещотки — перезарядка на 0,5 с быстрее). Несколько колоколов не складываются.' },
     proj: { kind: 'none', r: 0, speed: 0 },
     color: '#ffd77a', price: 0,
   },
 ];
-// «Вечная стужа» и «Боевой набат»
-TD.FROST_AURA = { slow: 0.3 };
-TD.BELL = { acc: 2, rate: 2, reload: 0.5, radius: 1 };
+// «Вечная стужа» (def.slow) и «Боевой набат» (def.buff, def.buffRadius) задаются у самих вышек — их меняют улучшения.
 // Тёмные кристаллы у дорог: 5–7 штук, 500 здоровья, радиус как у вышки с дальностью 8 (4 клетки),
 // врагам в радиусе +4 к выносливости, силе и скорости. lift/w/h — силуэт для попаданий.
 TD.CRYSTAL = { min: 5, max: 7, hp: 500, range: 8, bonus: 4, lift: 18, w: 26, h: 44 };
@@ -141,14 +139,14 @@ TD.SPOTS = {
 TD.SPOT_COUNT = { min: 3, max: 5 };
 
 // Фактические характеристики вышки из параметров 1–20 (spot — вид места силы под вышкой,
-// buffed — рядом «Боевой набат»: +2 к точности и скорострельности).
+// buffed — «Боевой набат» соседнего колокола: { acc, rate, reload } или пусто).
 TD.towerActual = function (def, spot, buffed) {
   const s = def.stats;
   const k = 1 + TD.SPOT_BONUS;
   const range = TD.F.range(s.range) * (spot === 'range' ? k : 1);
   if (def.aura) return { dmg: 0, range, rate: 0, cooldown: Infinity, dps: 0, dev: 0, acc: null, projSpeed: 0 };
-  const acc = s.acc === null ? null : Math.min(20, s.acc + (buffed ? TD.BELL.acc : 0));
-  const rate = s.rate === null ? null : s.rate + (buffed ? TD.BELL.rate : 0);
+  const acc = s.acc === null ? null : Math.min(20, s.acc + (buffed ? buffed.acc : 0));
+  const rate = s.rate === null ? null : s.rate + (buffed ? buffed.rate : 0);
   const a = {
     dmg: TD.F.damage(s.dmg) * (spot === 'dmg' ? k : 1),
     range,
@@ -158,7 +156,7 @@ TD.towerActual = function (def, spot, buffed) {
   };
   const fast = spot === 'rate' ? k : 1;
   if (def.burst) {
-    a.reload = (def.burst.reload - (buffed ? TD.BELL.reload : 0)) / fast;   // у очереди ускоряется перезарядка
+    a.reload = (def.burst.reload - (buffed ? buffed.reload : 0)) / fast;   // у очереди ускоряется перезарядка
     a.rate = def.burst.shots / (def.burst.shots * def.burst.gap + a.reload);
     a.cooldown = def.burst.gap;
   } else if (def.flame) {

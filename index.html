@@ -106,11 +106,14 @@
       <aside class="wm-panel">
         <div class="wm-head">
           <div><div class="wm-kicker">Карта похода</div><h2>Земли гоблинов</h2></div>
-          <div class="wm-stars" title="Звёзды за пройденные уровни (лучшие результаты)">★ <b id="wmStars">0</b></div>
+          <div class="wm-stars" title="Звёзды за пройденные уровни (лучшие результаты): всего / максимум">★ <b id="wmStars">0</b></div>
         </div>
         <button class="wm-back" id="wmBack" hidden>⟵ Вернуться к битве</button>
+        <div class="wm-tabs">
+          <button class="wm-tab on" data-tab="loc">🗺 Локация</button>
+          <button class="wm-tab" data-tab="shop">★ Сокровищница <b id="wmFree">0</b></button>
+        </div>
         <div class="wm-loc" id="wmLoc"></div>
-        <div class="wm-treasury"><b>★ Сокровищница звёзд</b>Звёзды копятся за каждый пройденный уровень. Скоро за них можно будет покупать улучшения вышек и заклинаний и открывать новые вышки.</div>
         <div class="wm-rules"><span>★★★</span>замок не получил урона<span>★★</span>прочность замка выше 10<span>★</span>победа</div>
       </aside>
     </div>
@@ -132,6 +135,7 @@
   <script src="js/masks.js"></script>
   <script src="js/mapgen.js"></script>
   <script src="js/sim.js"></script>
+  <script src="js/upgrades.js"></script>
   <script src="js/progress.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/render.js"></script>

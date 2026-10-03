@@ -624,7 +624,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       // Зона «Боевого набата» — соседние клетки
       ctx.setLineDash([]);
       ctx.strokeStyle = 'rgba(255,215,122,0.18)'; ctx.lineWidth = 1;
-      const r = TD.BELL.radius;
+      const r = tw.def.buffRadius;
       rr(ctx, (tw.tx - r) * T + 3, (tw.ty - r) * T + 3, (2 * r + 1) * T - 6, (2 * r + 1) * T - 6, 10); ctx.stroke();
     }
     ctx.restore();

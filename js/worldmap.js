@@ -486,11 +486,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
     L.waves.forEach(w => { for (const ch of w.units) { const ty = TD.WAVE_UNIT[ch]; if (ty && !types.includes(ty)) types.push(ty); } });
     return types;
   }
+  WM.tab = 'loc';
   WM.renderPanel = function () {
     const box = $('wmLoc');
     const n = nodes.find(q => (q.future ? 'f' + q.i : q.id) === WM.sel) || nodes[0];
     const P = TD.Progress;
     $('wmStars').textContent = `${P.total()} / ${P.maxTotal()}`;
+    $('wmFree').textContent = P.free();
+    document.querySelectorAll('.wm-tab').forEach(b => b.classList.toggle('on', b.dataset.tab === WM.tab));
+    if (WM.tab === 'shop') return renderShop(box);
     if (n.future) {
       box.innerHTML = `<div class="wl-kicker">За туманом</div><h3 class="wl-name">Неизведанные земли</h3>
         <p class="wl-desc">Дальше на север лежат горы, о которых гоблины рассказывают шёпотом. Эти земли откроются в следующих походах.</p>`;
@@ -528,6 +532,75 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if ($('wlGo')) $('wlGo').onclick = () => { TD.Sound.play('click'); WM.close(); TD.newGame(undefined, n.id); };
   };
 
+  // ---------------- Сокровищница: открытие вышек и улучшения ----------------
+  const ROMAN = ['I', 'II', 'III'];
+  function towerIcon(def) {
+    const c = document.createElement('canvas');
+    c.width = 104; c.height = 104; c.className = 'ws-ico';
+    const x = c.getContext('2d');
+    x.scale(2, 2);
+    const tall = def.id === 'bell' || def.id === 'spire';
+    x.translate(26, tall ? 37 : 30);
+    x.scale(tall ? 0.72 : 0.9, tall ? 0.72 : 0.9);
+    TD.drawTower(x, def, { angle: -Math.PI / 5 });
+    return c;
+  }
+  // Три ступени: купленные отмечены, следующая — с кнопкой покупки, дальние приглушены.
+  function rankList(id, can) {
+    const P = TD.Progress, r = P.rank(id), free = WM.midBattle ? 0 : P.free();
+    return TD.UPGRADES[id].map((u, k) => {
+      const cost = TD.UPGRADE_COST[k];
+      const state = k < r ? 'done' : k === r ? 'next' : 'later';
+      const btn = state === 'done' ? '<span class="ws-ok">✓</span>'
+        : state === 'next' ? (can ? `<button class="ws-buy" data-up="${id}" ${free < cost ? 'disabled' : ''}>★ ${cost}</button>` : `<span class="ws-cost">★ ${cost}</span>`)
+        : `<span class="ws-cost">★ ${cost}</span>`;
+      return `<div class="ws-rank ${state}"><span class="ws-rn">${ROMAN[k]}</span><div><b>${esc(u.name)}</b><small>${esc(u.desc)}</small></div>${btn}</div>`;
+    }).join('');
+  }
+  function renderShop(box) {
+    const P = TD.Progress, free = WM.midBattle ? 0 : P.free();
+    const towers = TD.TOWERS, spells = TD.SPELLS.filter(s => TD.SPELL_UPGRADE_KEY[s.id]);
+    box.innerHTML = `
+      ${WM.midBattle ? '<div class="ws-mid">⚔ Идёт бой — покупать можно только между уровнями.</div>' : ''}
+      <div class="ws-top"><div><b>★ ${P.free()}</b> свободно<small>всего заработано ${P.total()}, потрачено ${P.spent()}</small></div>
+        <button class="ws-refund" id="wsRefund" ${P.spent() && !WM.midBattle ? '' : 'disabled'} title="Сбросить открытия и улучшения и вернуть все звёзды">↺ Вернуть звёзды</button></div>
+      <div class="wl-h">Новые вышки</div>
+      <div class="ws-unlocks">${TD.LOCKED_TOWERS.map(id => {
+        const d = towers.find(t => t.id === id), open = P.unlocked[id];
+        return `<div class="ws-unlock ${open ? 'open' : ''}" data-icon="${id}">
+          <div class="ws-un-name">${esc(d.name)}</div><small>${esc(d.title)}</small>
+          ${open ? '<span class="ws-ok">✓ Открыта</span>' : `<button class="ws-buy" data-unlock="${id}" ${free < TD.UNLOCK_COST ? 'disabled' : ''}>Открыть · ★ ${TD.UNLOCK_COST}</button>`}
+        </div>`;
+      }).join('')}</div>
+      <div class="wl-h">Улучшения вышек</div>
+      ${towers.map(d => {
+        const can = P.canUpgrade(d.id);
+        return `<div class="ws-item ${can ? '' : 'locked'}" style="--tc:${d.color}">
+          <div class="ws-head" data-icon="${d.id}"><div><b>${esc(d.name)}</b><span class="ws-pips">${[0, 1, 2].map(k => `<i class="${k < P.rank(d.id) ? 'on' : ''}"></i>`).join('')}</span>
+          ${can ? '' : '<small class="ws-lockmsg">🔒 Сначала откройте вышку</small>'}</div></div>
+          ${rankList(d.id, can)}</div>`;
+      }).join('')}
+      <div class="wl-h">Улучшения заклинаний</div>
+      ${spells.map(s => {
+        const key = TD.SPELL_UPGRADE_KEY[s.id];
+        return `<div class="ws-item" style="--tc:#7ab8ff">
+          <div class="ws-head"><span class="ws-sp">${s.icon}</span><div><b>${esc(s.name)}</b><span class="ws-pips">${[0, 1, 2].map(k => `<i class="${k < P.rank(key) ? 'on' : ''}"></i>`).join('')}</span></div></div>
+          ${rankList(key, true)}</div>`;
+      }).join('')}
+      <p class="ws-note">Улучшения действуют на всех уровнях с начала следующего боя. Ремонт замка не улучшается.</p>`;
+    box.querySelectorAll('[data-icon]').forEach(el => el.prepend(towerIcon(towers.find(t => t.id === el.dataset.icon))));
+    box.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => {
+      if (P.upgrade(b.dataset.up)) { TD.Sound.play('build'); WM.renderPanel(); }
+    }));
+    box.querySelectorAll('[data-unlock]').forEach(b => b.addEventListener('click', () => {
+      if (P.unlock(b.dataset.unlock)) { TD.Sound.play('build'); WM.renderPanel(); }
+    }));
+    $('wsRefund').onclick = () => {
+      if (!confirm('Сбросить все открытия и улучшения и вернуть звёзды?')) return;
+      P.refund(); TD.Sound.play('sell'); WM.renderPanel();
+    };
+  }
+
   WM.isOpen = () => !$('world').hidden;
   // opts.select — какую метку выделить; opts.canReturn — можно вернуться к текущему бою.
   WM.open = function (opts) {
@@ -536,6 +609,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const P = TD.Progress;
     WM.sel = opts.select && TD.LEVELS[opts.select] ? opts.select : P.frontier();
     $('wmBack').hidden = !opts.canReturn;
+    WM.midBattle = !!opts.canReturn;   // посреди боя покупки закрыты — только между уровнями
     $('world').hidden = false;
     WM.renderPanel();
     cancelAnimationFrame(raf);
@@ -556,8 +630,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (!n) return;
       TD.Sound.play('click');
       WM.sel = n.future ? 'f' + n.i : n.id;
+      WM.tab = 'loc';
       WM.renderPanel();
     });
     $('wmBack').onclick = () => { TD.Sound.play('click'); WM.close(); };
+    document.querySelectorAll('.wm-tab').forEach(b => b.addEventListener('click', () => { TD.Sound.play('click'); WM.tab = b.dataset.tab; WM.renderPanel(); }));
   };
 })();

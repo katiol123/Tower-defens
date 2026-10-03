@@ -36,6 +36,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
   TD.newGame = function (seed, level) {
     if (seed === undefined) seed = (Math.random() * 1e9) | 0;
     UI.level = level || UI.level || 1;
+    // Купленные за звёзды открытия и улучшения — с начала боя.
+    TD.Progress.apply();
+    UI.buildShop();
+    UI.buildSpells();
     game = new TD.Game(seed, { rng: TD.makeRng((Math.random() * 1e9) | 0), level: UI.level });
     const L = TD.LEVELS[UI.level];
     $('brandSub').textContent = L.sub;
@@ -165,6 +169,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       TD.Sound.toggle(); syncSound();
     } else if (/^[1-7]$/.test(ev.key)) {
       const def = TD.TOWERS[+ev.key - 1];
+      if (def.locked) { TD.Sound.play('deny'); UI.banner('Вышка закрыта', `«${def.name}» открывается на карте похода за ${TD.UNLOCK_COST} ★`, 1600); return; }
       UI.selectPlacing(UI.placing === def ? null : def);
     }
   });

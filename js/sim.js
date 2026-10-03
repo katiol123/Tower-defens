@@ -136,7 +136,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     let m = 1;
     if (negActive(e, 'coward') && e.hp < e.hpMax / 2) m *= 0.7;
     // Замедления не складываются: «Ледяная хватка» (50%) или «Вечная стужа» тотема (30%) — что сильнее.
-    if (!TD.isImmune(e)) m *= 1 - Math.max(e.slowT > 0 ? TD.SPELL.frost.slow : 0, e.chill ? TD.FROST_AURA.slow : 0);
+    if (!TD.isImmune(e)) m *= 1 - Math.max(e.slowT > 0 ? TD.SPELL.frost.slow : 0, e.chill || 0);
     if (e.stupor > 0) m = 0;
     return m;
   }
@@ -265,10 +265,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
     return t;
   };
 
-  // «Боевой набат»: есть ли колокол в соседней клетке (включая диагонали).
+  // «Боевой набат»: бонус колокола в соседней клетке (включая диагонали) — объект { acc, rate, reload } или null.
   G.bellNear = function (t) {
-    const r = TD.BELL.radius;
-    return this.towers.some(b => b !== t && b.def.aura === 'bell' && Math.abs(b.tx - t.tx) <= r && Math.abs(b.ty - t.ty) <= r);
+    const b = this.towers.find(b => b !== t && b.def.aura === 'bell' && Math.max(Math.abs(b.tx - t.tx), Math.abs(b.ty - t.ty)) <= b.def.buffRadius);
+    return b ? b.def.buff : null;
   };
   // Пересчёт характеристик вышек, у которых появился или пропал колокол рядом.
   G.refreshBuffs = function () {
@@ -756,7 +756,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       const b = TD.enemyBox(e);
       for (const t of auras) {
         if (Math.hypot(b.cx - t.cx, b.cy - t.cy) > t.act.range * T()) continue;
-        if (t.def.aura === 'frost') e.chill = true; else e.revealed = true;
+        if (t.def.aura === 'frost') e.chill = Math.max(e.chill || 0, t.def.slow); else e.revealed = true;
       }
     }
   };

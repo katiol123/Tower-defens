@@ -35,6 +35,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
             <div class="tprice"><span class="coin"></span>${def.price}</div>
           </div>
           <span class="tc-key">${i + 1}</span>
+          ${def.rank ? `<span class="tc-rank" title="Улучшения: ${TD.UPGRADES[def.id].slice(0, def.rank).map(u => u.name).join(', ')}">${'★'.repeat(def.rank)}</span>` : ''}
         </div>
         <div class="tc-stats">
           ${def.aura ? row('Урон', '—', 'не стреляет', 0) : row('Урон', s.dmg, `${num(a.dmg)} (${TD.DMG_TYPE_LABEL[def.dmgType]})`, s.dmg * 5)}
@@ -55,7 +56,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       cx.translate(29, tall ? 41 : 33);
       if (tall) cx.scale(0.8, 0.8);
       TD.drawTower(cx, def, { angle: -Math.PI / 5 });
-      card.addEventListener('click', () => { TD.Sound.play('click'); UI.selectPlacing(UI.placing === def ? null : def); });
+      if (def.locked) {
+        card.classList.add('locked');
+        card.insertAdjacentHTML('beforeend', `<div class="tc-lock"><span>🔒</span><b>Закрыта</b><small>Откройте на карте похода<br>в сокровищнице за ${TD.UNLOCK_COST} ★</small></div>`);
+      }
+      card.addEventListener('click', () => {
+        if (def.locked) { TD.Sound.play('deny'); UI.banner('Вышка закрыта', `«${def.name}» открывается на карте похода за ${TD.UNLOCK_COST} ★`, 1600); return; }
+        TD.Sound.play('click'); UI.selectPlacing(UI.placing === def ? null : def);
+      });
       list.appendChild(card);
     });
   };
@@ -335,7 +343,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (e.absorbed) extra.push(`🛡️ Шкура поглотила: <b>${fmt(Math.round(e.absorbed))}</b> урона`);
     if (e.slowT > 0) extra.push(`❄️ Скован льдом · ещё <b>${fmt(e.slowT, 1)} с</b>`);
     if (e.empowered) extra.push(`💎 Тёмная сила кристалла: <b>+${TD.CRYSTAL.bonus}</b> к выносливости, силе и скорости`);
-    if (e.chill && !TD.isImmune(e)) extra.push(`🧊 Вечная стужа тотема: <b>−${Math.round(TD.FROST_AURA.slow * 100)}%</b> скорости`);
+    if (e.chill && !TD.isImmune(e)) extra.push(`🧊 Вечная стужа тотема: <b>−${Math.round(e.chill * 100)}%</b> скорости`);
     if (e.revealed && e.perks.includes('stealth')) extra.push('👁️ Замечен дозорным колоколом — вышки его видят');
     if (e.burnT > 0) extra.push(`🔥 Горит · ещё <b>${fmt(e.burnT, 1)} с</b>`);
     if (e.stupor > 0) {
@@ -387,14 +395,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       <div class="tp-head"><span class="tp-name">${esc(t.def.name)}</span><button class="tp-x" title="Закрыть">✕</button></div>
       <div class="tp-sub">${esc(t.def.title)}${[t.def.perk, t.def.perk2].filter(Boolean).map(pk => ' · ' + pk.icon + ' ' + esc(pk.name)).join('')}</div>
       ${t.spot ? `<div class="tp-spot" style="--sc:${TD.SPOTS[t.spot].color}">${TD.SPOTS[t.spot].icon} ${esc(TD.SPOTS[t.spot].name)}: ${esc(TD.SPOTS[t.spot].desc)}</div>` : ''}
-      ${t.buffed ? `<div class="tp-spot" style="--sc:${TD.TOWERS.find(d => d.id === 'bell').color}">🔔 Боевой набат: +${TD.BELL.acc} к точности, ${t.def.burst ? `перезарядка −${fmt(TD.BELL.reload, 1)} с` : `+${TD.BELL.rate} к скорострельности`}</div>` : ''}
+      ${t.buffed ? `<div class="tp-spot" style="--sc:${TD.TOWERS.find(d => d.id === 'bell').color}">🔔 Боевой набат: +${t.buffed.acc} к точности, ${t.def.burst ? `перезарядка −${num(t.buffed.reload)} с` : `+${t.buffed.rate} к скорострельности`}</div>` : ''}
       ${t.def.aura ? `<div class="tp-grid">
         <span>${t.def.aura === 'frost' ? 'Радиус стужи' : 'Радиус дозора'} ${s.range}</span><b>${fmt(a.range, 1)} кл</b>
-        ${t.def.aura === 'frost' ? `<span>Замедление</span><b>−${Math.round(TD.FROST_AURA.slow * 100)}%</b>` : `<span>Набат</span><b>соседние клетки</b>`}
+        ${t.def.aura === 'frost' ? `<span>Замедление</span><b>−${Math.round(t.def.slow * 100)}%</b>` : `<span>Набат</span><b>+${t.def.buff.acc} / +${t.def.buff.rate} · радиус ${t.def.buffRadius} кл</b>`}
         <span>Сейчас в зоне</span><b class="tp-zone">${UI.auraCount(t)}</b>
       </div>` : `<div class="tp-grid">
         <span>Урон ${s.dmg}</span><b>${num(a.dmg)} (${TD.DMG_TYPE_LABEL[t.def.dmgType]})</b>
-        <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate + (t.buffed ? TD.BELL.rate : 0)}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(a.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
+        <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate + (t.buffed ? t.buffed.rate : 0)}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(a.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
         <span>Точность ${a.acc === null ? '∞' : a.acc}</span><b>${a.acc === null ? t.def.accLabel : '±' + fmt(a.dev, 0) + ' px'}</b>
         <span>Дальность ${s.range}</span><b>${fmt(a.range, 1)} кл</b>
         ${t.def.pierce ? `<span>Пробой чар</span><b class="tp-pierce">+${(t.pierce || 0) * 10}%</b>` : ''}
