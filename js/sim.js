@@ -582,10 +582,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
     t.recoil = Math.max(0, t.recoil - dt * 6);
     t.firing = Math.max(0, t.firing - dt);
     const R = t.act.range * T();
-    // Цель — враг, прошедший дальше всех по маршруту, в радиусе действия.
+    // Цель — враг, прошедший дальше всех по маршруту, в радиусе действия. «Скрытность» — вышка его не видит.
     let best = null, bestProg = -1;
     for (const e of this.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.perks.includes('stealth')) continue;
       const b = TD.enemyBox(e);
       if (Math.hypot(b.cx - t.cx, b.cy - t.cy) > R) continue;
       const prog = e.dist / e.route.length;
@@ -683,6 +683,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
         if (!this.immortalCastle) this.castleHp = Math.max(0, this.castleHp - e.stats.str);
         this.stats.leaked++;
         this.emit({ type: 'castle', e, dmg: e.stats.str });
+        // «Вор»: добравшись до замка, уносит всё золото игрока.
+        if (e.perks.includes('robber') && this.gold > 0) {
+          const stolen = this.gold;
+          this.gold = 0;
+          this.stats.stolen = (this.stats.stolen || 0) + stolen;
+          this.emit({ type: 'robbed', e, gold: stolen });
+        }
         continue;
       }
       placeEnemy(e);

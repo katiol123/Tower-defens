@@ -208,6 +208,57 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
   TD.setLevel(1);
 }
 
+// Гоблин-вор и третья волна уровня 2
+{
+  const th = TD.createUnit('thief', TD.makeRng(51));
+  check('Гоблин-вор: выносливость 2, сила 1, скорость 9, техника 3 + 5 + 2 = 10',
+    th.stats.sta === 2 && th.stats.str === 1 && th.stats.spd === 9 && th.stats.tech === 10 && th.perks.join() === 'stealth,robber');
+  // Вышки его не видят: вор один в зоне Сокола — выстрелов нет
+  const g = new TD.Game(52); g.immortalCastle = true;
+  const r = g.map.paths[0].route;
+  const t = TD.createUnit('thief', g.rng); g.spawnEnemy(t, 0); t.dist = r.length * 0.4; TD.placeEnemy(t);
+  const tw = g.addTower(TD.TOWERS[3], 0, 0, true) || (() => { for (let y = 0; y < TD.ROWS; y++) for (let x = 0; x < TD.COLS; x++) if (g.canBuild(x, y)) return g.addTower(TD.TOWERS[3], x, y, true); })();
+  tw.act.range = 99;
+  const spd = TD.enemySpeedPx; TD.enemySpeedPx = () => 0;
+  for (let i = 0; i < 300; i++) g.update(TD.DT);
+  check('вышки не стреляют по вору, даже если он один в зоне', tw.shots === 0);
+  // Но снаряд, летящий в другого, его задевает: вор стоит точно на линии выстрела между вышкой и гоблином
+  const gob = TD.createUnit('goblin', g.rng); g.spawnEnemy(gob, 0); gob.dist = r.length * 0.6; TD.placeEnemy(gob);
+  tw.act.dev = 0;
+  const p = g.fire(tw, gob);
+  const gb = TD.enemyBox(gob);
+  const mx = (p.x + gb.cx) / 2, my = (p.y + gb.cy) / 2;
+  const tb = TD.enemyBox(t);
+  t.x += mx - tb.cx; t.y += my - tb.cy;            // центр спрайта вора — на середине линии огня
+  const h0t = t.hp, h0g = gob.hp;
+  for (let i = 0; i < 120 && !p.done; i++) g.updateProjectile(p, TD.DT);
+  TD.enemySpeedPx = spd;
+  check('снаряд, летевший в другого, попадает в вора на линии огня', t.hp < h0t && gob.hp === h0g && !p.hitTarget);
+  // Взрыв Громобоя и заклинания задевают вора
+  const g2 = new TD.Game(53); g2.immortalCastle = true; g2.mana = 100;
+  const t2 = TD.createUnit('thief', g2.rng); g2.spawnEnemy(t2, 0); t2.dist = t2.route.length * 0.4; TD.placeEnemy(t2);
+  const b2 = TD.enemyBox(t2), h0 = t2.hp;
+  g2.castSpell('chain', b2.cx, b2.cy);
+  check('заклинания по вору работают (молния)', t2.hp < h0);
+  // Кража золота
+  const g3 = new TD.Game(54); g3.gold = 777;
+  const t3 = TD.createUnit('thief', g3.rng); g3.spawnEnemy(t3, 0); t3.dist = t3.route.length - 1;
+  g3.update(TD.DT);
+  check('добравшись до замка, вор уносит всё золото и бьёт замок на 1', g3.gold === 0 && g3.castleHp === TD.CASTLE_HP - 1 && g3.stats.stolen === 777);
+
+  TD.setLevel(2);
+  const w2 = TD.waveDef(2), w3 = TD.waveDef(3);
+  const cnt = c => w3.list.filter(x => x.code === c).length;
+  check('уровень 2, волна 3: без воров столько же врагов, сколько во второй (42)', w3.count - cnt('T') === w2.count, `${w3.count - cnt('T')}`);
+  check('5 воров, 2 безумных, 2 шамана', cnt('T') === 5 && cnt('M') === 2 && cnt('S') === 2);
+  const rank = cnt('W') + cnt('G');
+  check('около 60% рядовых — наездники', Math.abs(cnt('W') / rank - 0.6) < 0.02, `${cnt('W')} из ${rank}`);
+  const tpos = w3.list.map((x, i) => x.code === 'T' ? i : -1).filter(i => i >= 0);
+  const gaps = tpos.slice(1).map((p, i) => p - tpos[i]);
+  check('воры распределены равномерно по волне', Math.max(...gaps) - Math.min(...gaps) <= 1 && tpos[0] <= 6 && w3.count - 1 - tpos[4] <= 6, tpos.join(', '));
+  TD.setLevel(1);
+}
+
 const MAPS = +(process.argv[2] || 100);
 console.log('\nПромахи по лютоволку (скорость 15), без перка и с «Серой молнией»:');
 for (const def of TD.TOWERS) {

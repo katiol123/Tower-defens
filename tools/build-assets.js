@@ -40,6 +40,11 @@ const UNITS = {
     w: 1460, h: 1440, x: { front: 100, side: 100, back: 100 }, y: { front: 80, side: 80, back: 80 },
     foot: 1428, sideFaces: 'right', matte: [255, 0, 255], cell: 28, scale: 0.19,
   },
+  thief: {
+    src: v => `assets/source/thief_${v}.png`,
+    w: 1420, h: 1320, x: { front: 90, side: 90, back: 90 }, y: { front: 151, side: 78, back: 102 },
+    foot: 1310, sideFaces: 'right', cell: 28, scale: 0.19,
+  },
 };
 
 (async () => {

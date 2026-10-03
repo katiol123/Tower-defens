@@ -169,9 +169,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const w = TD.waveDef(ev.n);
         const n = ch => (w.units.match(new RegExp(ch, 'g')) || []).length;
         if (w.boss) UI.banner('Босс: Тролль-мусорщик', 'На нём живут гоблины. Не дайте ему дойти до замка!', 3000);
-        else UI.banner(`Волна ${ev.n}`, [`${n('G')} гоблинов`, n('M') && `${n('M')} безумных`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
+        else UI.banner(`Волна ${ev.n}`, [`${n('G')} гоблинов`, n('M') && `${n('M')} безумных`, n('T') && `${n('T')} воров`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
       } else if (ev.type === 'waveEnd' && ev.n < TD.WAVES) {
         UI.banner(`Волна ${ev.n} отбита!`, `+${ev.reward} золота`, 1800);
+      } else if (ev.type === 'robbed') {
+        UI.banner('Ограбление!', `Гоблин-вор унёс ${ev.gold} золота`, 2200);
       } else if (ev.type === 'early') {
         UI.banner('Досрочно!', `+${ev.gold} золота за ${ev.sec} с`, 1500);
       }

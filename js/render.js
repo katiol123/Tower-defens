@@ -553,7 +553,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.drawImage(RED[e.sprite][e.view], -b.W * 0.56, -b.H * 0.56, b.W * 1.12, b.H * 1.12);
       ctx.restore();
     }
+    // «Скрытность»: вор полупрозрачный и слегка мерцает
+    if (e.perks.includes('stealth')) ctx.globalAlpha = 0.42 + Math.sin(o.t * 3 + e.id) * 0.08;
     ctx.drawImage(img, -b.W / 2, -b.H / 2, b.W, b.H);
+    ctx.globalAlpha = 1;
     if (e.frenzy && RED[e.sprite]) {
       ctx.globalAlpha = 0.18 + Math.sin(o.t * 10 + e.id) * 0.08;
       ctx.drawImage(RED[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
@@ -744,6 +747,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const cx = (c.x + c.w / 2) * T, cy = (c.y + 0.6) * T;
         if (ev.type === 'repair') spawnFx({ t: 'text', x: cx, y: cy - 30, s: `+${ev.v} ♜`, col: '#9dff8a', life: 1.4, big: true });
         for (let i = 0; i < 14; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: cx + Math.cos(q) * 40, y: cy + 30 + Math.sin(q) * 20, vx: Math.cos(q) * 20, vy: -15, life: 0.8, s: 5 + Math.random() * 5, light: true }); }
+      } else if (ev.type === 'robbed') {
+        const c = game.map.castle;
+        spawnFx({ t: 'text', x: (c.x + c.w / 2) * T, y: c.y * T - 10, s: `−${ev.gold} 💰 украдено!`, col: '#ffcf4a', life: 2.0, big: true });
+        for (let i = 0; i < 14; i++) spawnFx({ t: 'coin', x: (c.x + 0.2) * T + (Math.random() - 0.5) * 30, y: (c.y + 1.5) * T, v: '', life: 0.9 + Math.random() * 0.4 });
       } else if (ev.type === 'block') {
         spawnFx({ t: 'text', x: ev.x, y: ev.y - 6, s: 'Блок!', col: '#d9e2ea', life: 0.8 });
         for (let i = 0; i < 6; i++) { const q = Math.random() * TAU; spawnFx({ t: 'spark', x: ev.x, y: ev.y + 12, vx: Math.cos(q) * 110, vy: Math.sin(q) * 110, life: 0.22, col: '#f2f6ff' }); }
@@ -882,9 +889,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const g = ctx.createRadialGradient(f.x - 9, y - 5, 0, f.x - 8, y - 4, 6);
         g.addColorStop(0, '#fff1b8'); g.addColorStop(0.5, '#f0b93a'); g.addColorStop(1, '#9b6612');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x - 8, y - 4, 5, 0, TAU); ctx.fill();
-        ctx.font = 'bold 13px Philosopher, sans-serif'; ctx.textAlign = 'left';
-        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.strokeText('+' + f.v, f.x - 1, y);
-        ctx.fillStyle = '#ffd98a'; ctx.fillText('+' + f.v, f.x - 1, y);
+        if (f.v !== '') {
+          ctx.font = 'bold 13px Philosopher, sans-serif'; ctx.textAlign = 'left';
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.strokeText('+' + f.v, f.x - 1, y);
+          ctx.fillStyle = '#ffd98a'; ctx.fillText('+' + f.v, f.x - 1, y);
+        }
       } else if (f.t === 'corpse') {
         const e = f.e, b = TD.enemyBox(e), img = imgOf(e);
         if (img) {

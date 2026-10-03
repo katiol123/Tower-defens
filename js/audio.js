@@ -136,6 +136,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
     early() { [784, 988, 1175, 1568].forEach((f, i) => tone('sine', f, f, 0.12, 0.1, { delay: i * 0.05 })); },
     // Блок топором: металлический лязг
     block() { tone('square', 1250, 1150, 0.12, 0.08, { lp: 5000 }); tone('triangle', 2400, 2300, 0.2, 0.06); noise(0.06, 0.3, 'highpass', 4000); },
+    // Кража золота: звон монет вниз и злорадный смешок
+    robbed() { [1760, 1480, 1245, 1047, 880].forEach((f, i) => tone('sine', f, f * 0.97, 0.12, 0.12, { delay: i * 0.06 })); tone('sawtooth', 300, 180, 0.35, 0.08, { lp: 1500, delay: 0.32 }); },
     calm() { tone('triangle', 330, 165, 0.6, 0.12, { attack: 0.05 }); },
     dismount() { tone('sawtooth', 520, 880, 0.35, 0.09, { lp: 1600, attack: 0.08 }); tone('sawtooth', 880, 380, 0.7, 0.09, { lp: 1400, delay: 0.35 }); },
     click() { tone('sine', 900, 700, 0.04, 0.08); },
@@ -221,6 +223,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'calm': play('calm'); break;
           case 'nest': play('nest'); break;
           case 'block': play('block'); break;
+          case 'robbed': play('robbed'); break;
           case 'meteorCast': play('meteorCast'); break;
           case 'meteor': if (!playFile('meteor')) play('meteor'); break;
           case 'frost': if (!playFile('frost')) play('frost'); break;
