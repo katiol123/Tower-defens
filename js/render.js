@@ -606,6 +606,30 @@ var TD = globalThis.TD || (globalThis.TD = {});
     ctx.closePath(); ctx.fill();
   }
 
+  // Место силы: светящийся рунный круг с символом бонуса
+  function drawSpot(ctx, s, t, occupied) {
+    const S = TD.SPOTS[s.kind];
+    const cx = (s.x + 0.5) * T, cy = (s.y + 0.5) * T;
+    const k = 0.7 + Math.sin(t * 2.4 + s.x + s.y) * 0.3;
+    ctx.save();
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, T * 0.62);
+    g.addColorStop(0, hexA(S.color, 0.4 * k)); g.addColorStop(1, hexA(S.color, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, T * 0.62, 0, TAU); ctx.fill();
+    ctx.strokeStyle = hexA(S.color, 0.85); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(cx, cy + 4, T * 0.42, T * 0.3, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = hexA(S.color, 0.5); ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]); ctx.lineDashOffset = -t * 8;
+    ctx.beginPath(); ctx.ellipse(cx, cy + 4, T * 0.34, T * 0.23, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    // Руны по кругу
+    ctx.fillStyle = hexA(S.color, 0.9);
+    for (let i = 0; i < 6; i++) { const q = i / 6 * TAU + t * 0.5; ctx.beginPath(); ctx.arc(cx + Math.cos(q) * T * 0.42, cy + 4 + Math.sin(q) * T * 0.3, 1.8, 0, TAU); ctx.fill(); }
+    if (!occupied) {
+      ctx.font = 'bold 17px "Segoe UI Symbol", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.shadowColor = S.color; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#fff6e0'; ctx.fillText(S.icon, cx, cy + 2 - k * 2);
+    }
+    ctx.restore();
+  }
+
   // ---------------- Снаряды ----------------
   function drawProjectile(ctx, p) {
     const a = Math.atan2(p.vy, p.vx);
@@ -891,6 +915,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     }
 
     for (const p of game.map.paths) drawPortal(ctx, p, t);
+    for (const s of game.map.spots) drawSpot(ctx, s, t, !!game.towerAt(s.x, s.y));
 
     // Радиус выбранной вышки
     const selT = ui.selectedTower;
@@ -898,7 +923,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
     // Сортировка по глубине: вышки, враги, замок
     const items = [];
-    for (const tw of game.towers) items.push({ y: tw.cy + 14, f: () => { ctx.save(); ctx.translate(tw.cx, tw.cy); TD.drawTower(ctx, tw.def, { angle: tw.angle, recoil: tw.recoil, firing: tw.firing, reload: tw.def.burst && tw.cd > tw.def.burst.gap ? tw.cd / tw.def.burst.reload : 0, t }); ctx.restore(); } });
+    for (const tw of game.towers) items.push({ y: tw.cy + 14, f: () => { ctx.save(); ctx.translate(tw.cx, tw.cy); TD.drawTower(ctx, tw.def, { angle: tw.angle, recoil: tw.recoil, firing: tw.firing, reload: tw.def.burst && tw.cd > tw.def.burst.gap ? tw.cd / tw.act.reload : 0, t }); ctx.restore(); } });
     for (const e of game.enemies) items.push({ y: e.y + 12, f: () => drawGoblin(ctx, e, { selected: ui.selectedEnemy === e.id, t }) });
     const c = game.map.castle;
     items.push({ y: (c.y + c.h) * T - 8, f: () => drawCastle(ctx, game.map, t, ui.castleHitT || 0) });
@@ -908,7 +933,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     for (const p of game.projectiles) drawProjectile(ctx, p);
     drawFx(ctx, dt);
 
-    // Прицел заклинания
+    // Прицел заклинания: круг действия и иконка заклинания ровно на месте курсора (системный курсор скрыт)
     if (ui.casting && ui.hover) {
       const sp = TD.SPELL[ui.casting], { x, y } = ui.hover;
       ctx.save();
@@ -919,7 +944,6 @@ var TD = globalThis.TD || (globalThis.TD = {});
         ctx.setLineDash([8, 6]); ctx.lineDashOffset = -t * 30;
         ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill(); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sp.icon, x, y);
       } else if (sp.id === 'chain') {
         const e = game.enemyNear(x, y, T * 1.2);
         if (e) {
@@ -928,9 +952,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
           ctx.beginPath(); ctx.ellipse(b.cx, e.y + 13 * e.size, b.W * 0.45, 8 * e.size, 0, 0, TAU); ctx.stroke();
           ctx.strokeStyle = 'rgba(190,225,255,0.25)'; ctx.setLineDash([4, 6]);
           ctx.beginPath(); ctx.arc(b.cx, b.cy, TD.SPELL.chain.jumpRange * T, 0, TAU); ctx.stroke();
+          ctx.setLineDash([]);
         }
-        ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', x + 14, y - 14);
       }
+      // Иконка-курсор со свечением
+      const glow = sp.id === 'frost' ? 'rgba(160,220,255,0.9)' : sp.id === 'chain' ? 'rgba(190,225,255,0.95)' : 'rgba(255,150,70,0.9)';
+      ctx.shadowColor = glow; ctx.shadowBlur = 12;
+      ctx.font = '26px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(sp.icon, x, y);
       ctx.restore();
     }
 
@@ -939,7 +969,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
       const { tx, ty } = ui.hover;
       const ok = game.canBuild(tx, ty) && game.gold >= ui.placing.price;
       const cx = (tx + 0.5) * T, cy = (ty + 0.5) * T;
-      rangeCircle(ctx, cx, cy, TD.F.range(ui.placing.stats.range) * T, ok ? ui.placing.color : '#ff5a44', t);
+      const spot = game.map.spotAt(tx, ty);
+      rangeCircle(ctx, cx, cy, TD.towerActual(ui.placing, spot && spot.kind).range * T, ok ? ui.placing.color : '#ff5a44', t);
       ctx.fillStyle = ok ? 'rgba(140,255,120,0.18)' : 'rgba(255,80,60,0.22)';
       ctx.strokeStyle = ok ? 'rgba(160,255,140,0.8)' : 'rgba(255,100,80,0.9)';
       ctx.lineWidth = 2;
@@ -947,6 +978,18 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.save(); ctx.globalAlpha = 0.75; ctx.translate(cx, cy);
       TD.drawTower(ctx, ui.placing, { angle: -Math.PI / 4, t });
       ctx.restore();
+      if (spot && ok) {
+        // Подпись бонуса места силы над призраком
+        const S = TD.SPOTS[spot.kind];
+        ctx.save();
+        ctx.font = 'bold 13px Philosopher, sans-serif'; ctx.textAlign = 'center';
+        const txt = `${S.icon} ${S.desc}`;
+        const w = ctx.measureText(txt).width + 16;
+        ctx.fillStyle = 'rgba(20,14,8,0.88)'; rr(ctx, cx - w / 2, cy - 58, w, 22, 8); ctx.fill();
+        ctx.strokeStyle = S.color; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = S.color; ctx.fillText(txt, cx, cy - 42);
+        ctx.restore();
+      }
     }
 
     // Виньетка

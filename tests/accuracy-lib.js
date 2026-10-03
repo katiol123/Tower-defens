@@ -9,6 +9,7 @@ function measure(opts) {
     const seed = o.seed0 + m;
     const game = new TD.Game(seed);
     game.immortalCastle = true;
+    game.map.spots.length = 0;   // места силы не влияют на измерение
     const rng = TD.makeRng(seed * 31 + 7);
     const def = {
       id: 'test', stats: { dmg: 1, rate: 5, acc: o.acc || 10, range: o.rangeParam },

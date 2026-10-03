@@ -238,7 +238,26 @@ TD.PATH_COLORS = ['#ff6b6b', '#7ad1ff', '#c78bff'];
       return !road.has(k) && !castleSet.has(k) && !decoSet.has(k);
     };
 
-    return { seed, cols, rows, castle, gatePoint, paths, road, castleSet, deco, decoSet, tufts, buildable, key };
+    // Места силы: 3–5 свободных клеток вплотную к дороге, не ближе 3 клеток друг к другу.
+    const spotCand = [];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      if (!buildable(x, y)) continue;
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => road.has(key(x + dx, y + dy)))) spotCand.push({ x, y });
+    }
+    for (let i = spotCand.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [spotCand[i], spotCand[j]] = [spotCand[j], spotCand[i]]; }
+    const nSpots = rng.int(TD.SPOT_COUNT.min, TD.SPOT_COUNT.max);
+    // Первые три — по одному каждого вида, остальные — случайные.
+    const kinds = ['dmg', 'range', 'rate'];
+    for (let i = kinds.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
+    const spots = [];
+    for (const c of spotCand) {
+      if (spots.length >= nSpots) break;
+      if (spots.some(s => Math.max(Math.abs(s.x - c.x), Math.abs(s.y - c.y)) < 3)) continue;
+      spots.push({ x: c.x, y: c.y, kind: spots.length < 3 ? kinds[spots.length] : rng.pick(['dmg', 'range', 'rate']) });
+    }
+    const spotAt = (x, y) => spots.find(s => s.x === x && s.y === y) || null;
+
+    return { seed, cols, rows, castle, gatePoint, paths, road, castleSet, deco, decoSet, tufts, buildable, key, spots, spotAt };
   };
 
   // Убираем промежуточные точки на прямых — остаются только повороты.

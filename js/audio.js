@@ -107,11 +107,32 @@ var TD = globalThis.TD || (globalThis.TD = {});
     stupor() { tone('sawtooth', 220, 110, 0.9, 0.1, { lp: 700, attack: 0.05 }); tone('sine', 880, 870, 0.5, 0.05, { delay: 0.15 }); tone('sine', 1100, 1090, 0.5, 0.04, { delay: 0.3 }); },
     roar() { tone('sawtooth', 110, 55, 1.2, 0.3, { lp: 600, attack: 0.08 }); noise(1.0, 0.35, 'lowpass', 500, 120, { attack: 0.08 }); tone('sine', 50, 35, 1.2, 0.6, { attack: 0.05 }); },
     // Заклинания
-    meteorCast() { noise(1.0, 0.25, 'bandpass', 300, 2500, { q: 0.8, attack: 0.3 }); tone('sawtooth', 160, 60, 1.0, 0.06, { lp: 900, attack: 0.3 }); },
-    meteor() { tone('sine', 70, 25, 1.0, 1.0); noise(1.1, 0.8, 'lowpass', 2600, 90); noise(0.2, 0.35, 'highpass', 2500); },
-    frost() { [1568, 2093, 2637, 3136].forEach((f, i) => tone('triangle', f, f * 0.98, 0.5, 0.06, { delay: i * 0.05 })); noise(0.5, 0.18, 'highpass', 5000, 3000); },
-    chain() { for (let i = 0; i < 4; i++) noise(0.08, 0.35, 'bandpass', 2500 + Math.random() * 2000, 1200, { q: 3, delay: i * 0.05 }); tone('sawtooth', 900, 120, 0.3, 0.12, { lp: 3000 }); },
-    repair() { for (let i = 0; i < 3; i++) { noise(0.05, 0.3, 'bandpass', 1800, 900, { q: 4, delay: i * 0.13 }); tone('square', 520, 480, 0.05, 0.05, { lp: 2000, delay: i * 0.13 }); } },
+    // Метеор: нарастающий рёв падения с треском огня
+    meteorCast() {
+      noise(1.05, 0.55, 'bandpass', 220, 1800, { q: 0.7, attack: 0.85 });
+      noise(1.0, 0.25, 'highpass', 2500, 5000, { attack: 0.8 });
+      tone('sawtooth', 90, 260, 1.0, 0.16, { lp: 1200, attack: 0.8 });
+      for (let i = 0; i < 8; i++) noise(0.04, 0.25, 'bandpass', 3000 + Math.random() * 2000, 2000, { q: 4, delay: 0.2 + i * 0.1 });
+    },
+    // Удар метеора
+    meteor() { tone('sine', 70, 25, 1.0, 1.0); noise(1.1, 0.8, 'lowpass', 2600, 90); noise(0.2, 0.35, 'highpass', 2500); tone('square', 55, 30, 0.6, 0.2, { lp: 300 }); },
+    // Лёд: хруст льда, порыв ветра и хрустальный перезвон
+    frost() {
+      for (let i = 0; i < 10; i++) noise(0.05, 0.4, 'highpass', 3500 + Math.random() * 3000, 2500, { delay: i * 0.035 });
+      noise(0.8, 0.35, 'bandpass', 900, 3500, { q: 0.8, attack: 0.08 });
+      [1568, 2093, 2637, 3136, 4186].forEach((f, i) => tone('triangle', f, f * 0.99, 0.9, 0.14, { delay: 0.08 + i * 0.06 }));
+      tone('sine', 523, 520, 0.9, 0.12, { delay: 0.05, attack: 0.03 });
+    },
+    // Молния: электрический треск и раскат
+    chain() {
+      for (let i = 0; i < 7; i++) {
+        tone('sawtooth', 1800 + Math.random() * 1500, 200 + Math.random() * 300, 0.07, 0.22, { lp: 6000, delay: i * 0.045 });
+        noise(0.06, 0.5, 'bandpass', 2500 + Math.random() * 2500, 1500, { q: 2, delay: i * 0.045 });
+      }
+      tone('square', 110, 55, 0.45, 0.25, { lp: 700, delay: 0.05 });
+      noise(0.7, 0.4, 'lowpass', 900, 120, { delay: 0.1 });
+    },
+    repair() { for (let i = 0; i < 3; i++) { noise(0.06, 0.7, 'bandpass', 1800, 900, { q: 4, delay: i * 0.13 }); tone('square', 520, 480, 0.06, 0.14, { lp: 2000, delay: i * 0.13 }); } },
     early() { [784, 988, 1175, 1568].forEach((f, i) => tone('sine', f, f, 0.12, 0.1, { delay: i * 0.05 })); },
     calm() { tone('triangle', 330, 165, 0.6, 0.12, { attack: 0.05 }); },
     dismount() { tone('sawtooth', 520, 880, 0.35, 0.09, { lp: 1600, attack: 0.08 }); tone('sawtooth', 880, 380, 0.7, 0.09, { lp: 1400, delay: 0.35 }); },
@@ -120,6 +141,32 @@ var TD = globalThis.TD || (globalThis.TD = {});
     deny() { tone('square', 220, 180, 0.12, 0.07, { lp: 1200 }); tone('square', 165, 140, 0.16, 0.07, { lp: 1200, delay: 0.1 }); },
   };
   const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000, meteor: 100, repair: 300 };
+
+  // Звуки из файлов (assets/audio). Обычный HTML-аудио работает и при открытии index.html с диска.
+  // Громкость выровнена: лёд записан тише остальных.
+  const FILES = {
+    meteor: { src: 'assets/audio/meteor.mp3', vol: 0.6 },
+    frost: { src: 'assets/audio/frost.mp3', vol: 1.0 },
+    chain: { src: 'assets/audio/chain.mp3', vol: 0.7 },
+  };
+  const fileEls = {};
+  if (typeof Audio !== 'undefined') {
+    for (const k in FILES) {
+      const a = new Audio(FILES[k].src);
+      a.preload = 'auto';
+      a.addEventListener('error', () => { fileEls[k] = null; });   // нет файла — играем синтезированный звук
+      fileEls[k] = a;
+    }
+  }
+  function playFile(name) {
+    const base = fileEls[name];
+    if (!base) return false;
+    if (muted) return true;
+    const a = base.cloneNode();
+    a.volume = FILES[name].vol;
+    a.play().catch(() => {});
+    return true;
+  }
 
   function play(name) {
     if (!ready() || !SFX[name]) return;
@@ -172,9 +219,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'calm': play('calm'); break;
           case 'nest': play('nest'); break;
           case 'meteorCast': play('meteorCast'); break;
-          case 'meteor': play('meteor'); break;
-          case 'frost': play('frost'); break;
-          case 'chain': play('chain'); break;
+          case 'meteor': if (!playFile('meteor')) play('meteor'); break;
+          case 'frost': if (!playFile('frost')) play('frost'); break;
+          case 'chain': if (!playFile('chain')) play('chain'); break;
           case 'repair': case 'masonry': play('repair'); break;
           case 'early': play('early'); break;
           case 'kick': play('kick'); break;

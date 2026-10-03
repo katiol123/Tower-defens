@@ -37,7 +37,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           <span class="tc-key">${i + 1}</span>
         </div>
         <div class="tc-stats">
-          ${row('Урон', s.dmg, num(a.dmg), s.dmg * 5)}
+          ${row('Урон', s.dmg, `${num(a.dmg)} (${TD.DMG_TYPE_LABEL[def.dmgType]})`, s.dmg * 5)}
           ${def.burst
             ? row('Скорость стрельбы', 'очередь', `${def.burst.shots}× / ${fmt(def.burst.shots * def.burst.gap + def.burst.reload, 1)} с`, 100, true)
             : row('Скорость стрельбы', s.rate, def.flame ? fmt(a.rate, 0) + ' сгуст./с' : fmt(a.rate, 1) + '/с', s.rate * 5)}
@@ -373,9 +373,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
     pop.innerHTML = `
       <div class="tp-head"><span class="tp-name">${esc(t.def.name)}</span><button class="tp-x" title="Закрыть">✕</button></div>
       <div class="tp-sub">${esc(t.def.title)}${t.def.perk ? ' · ' + t.def.perk.icon + ' ' + esc(t.def.perk.name) : ''}</div>
+      ${t.spot ? `<div class="tp-spot" style="--sc:${TD.SPOTS[t.spot].color}">${TD.SPOTS[t.spot].icon} ${esc(TD.SPOTS[t.spot].name)}: ${esc(TD.SPOTS[t.spot].desc)}</div>` : ''}
       <div class="tp-grid">
-        <span>Урон ${s.dmg}</span><b>${num(a.dmg)}</b>
-        <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(t.def.burst.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
+        <span>Урон ${s.dmg}</span><b>${num(a.dmg)} (${TD.DMG_TYPE_LABEL[t.def.dmgType]})</b>
+        <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(a.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
         <span>Точность ${s.acc}</span><b>±${fmt(a.dev, 0)} px</b>
         <span>Дальность ${s.range}</span><b>${fmt(a.range, 1)} кл</b>
       </div>
@@ -398,7 +399,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const fx = view.ox + t.cx * view.scale, fy = view.oy + t.cy * view.scale;
     const field = $('field').getBoundingClientRect();
     let x = fx + 34, y = fy - 90;
-    if (x + 260 > field.width - (document.getElementById('shop').classList.contains('closed') ? 10 : 340)) x = fx - 34 - 250;
+    if (x + 300 > field.width - (document.getElementById('shop').classList.contains('closed') ? 10 : 340)) x = fx - 34 - 290;
     y = Math.max(10, Math.min(field.height - pop.offsetHeight - 10, y));
     pop.style.left = x + 'px'; pop.style.top = y + 'px';
   };

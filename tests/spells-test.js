@@ -112,6 +112,31 @@ TD.enemySpeedPx = e => e.frozen ? 0 : origSpeed(e);
   check('во время выхода волны досрочно запускать нельзя', !g.canStartWave());
 }
 
+// --- Места силы: +30% к фактическому урону, дальности, скорострельности (у очереди — перезарядка)
+{
+  const g = new TD.Game(10); g.gold = 1e6;
+  const res = {};
+  for (const kind of ['dmg', 'range', 'rate']) {
+    g.map.spots.length = 0;
+    // Ставим место силы на свободную клетку и строим на нём каждую вышку
+    const free = []; for (let y = 0; y < TD.ROWS; y++) for (let x = 0; x < TD.COLS; x++) if (g.canBuild(x, y)) free.push({ x, y });
+    TD.TOWERS.forEach((def, i) => {
+      const c = free[i * 7 + 3];
+      g.map.spots.push({ x: c.x, y: c.y, kind });
+      const t = g.addTower(def, c.x, c.y, true), base = TD.towerActual(def);
+      const okK = kind === 'dmg' ? near(t.act.dmg, base.dmg * 1.3) && near(t.act.range, base.range)
+        : kind === 'range' ? near(t.act.range, base.range * 1.3) && near(t.act.dmg, base.dmg)
+        : def.burst ? near(t.act.reload, def.burst.reload / 1.3) && near(t.act.cooldown, base.cooldown)
+        : near(t.act.rate, base.rate * 1.3);
+      res[kind] = (res[kind] !== false) && okK;
+    });
+  }
+  check('место ярости: +30% к фактическому урону', res.dmg);
+  check('место дальнозоркости: +30% к дальности', res.range);
+  check('место быстроты: +30% к скорострельности, у Трещотки перезарядка 3,5 → 2,69 с', res.rate);
+  check('Трещотка: урон 4 → 6,95 (физ), Драконья пасть — огонь', TD.F.damage(TD.TOWERS[0].stats.dmg) === 6.95 && TD.TOWERS[0].dmgType === 'phys' && TD.TOWERS[2].dmgType === 'fire');
+}
+
 TD.enemySpeedPx = origSpeed;
 console.log(ok ? '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ' : '\nЕСТЬ ОШИБКИ');
 process.exit(ok ? 0 : 1);

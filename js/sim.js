@@ -192,10 +192,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (!free) { if (this.gold < def.price) return null; this.gold -= def.price; }
     const t = {
       def, tx, ty, cx: (tx + 0.5) * T(), cy: (ty + 0.5) * T(),
-      act: TD.towerActual(def), cd: 0.3, burstLeft: def.burst ? def.burst.shots : 0,
+      spot: this.map.spotAt(tx, ty) ? this.map.spotAt(tx, ty).kind : null,
+      cd: 0.3, burstLeft: def.burst ? def.burst.shots : 0,
       angle: -Math.PI / 2, target: null, spent: free ? 0 : def.price,
       shots: 0, hits: 0, dmgDealt: 0, kills: 0, firing: 0, recoil: 0,
     };
+    t.act = TD.towerActual(def, t.spot);
     this.towers.push(t);
     this.emit({ type: 'build', x: t.cx, y: t.cy });
     return t;
@@ -570,7 +572,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (!best) { if (t.burstLeft < def.burst.shots && t.burstLeft > 0) { /* держим очередь */ } return; }
       this.fire(t, best);
       t.burstLeft--;
-      if (t.burstLeft <= 0) { t.burstLeft = def.burst.shots; t.cd = def.burst.reload; t.reloading = def.burst.reload; }
+      if (t.burstLeft <= 0) { t.burstLeft = def.burst.shots; t.cd = t.act.reload; t.reloading = t.act.reload; }
       else t.cd = def.burst.gap;
       return;
     }

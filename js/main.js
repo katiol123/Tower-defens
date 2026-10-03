@@ -61,7 +61,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
   cv.addEventListener('mousemove', ev => {
     const w = toWorld(ev);
     UI.hover = w.inside ? w : null;
-    if (!UI.placing && !UI.casting) {
+    if ((UI.placing || UI.casting) && w.inside) cv.style.cursor = 'none';   // вместо курсора рисуется вышка или иконка заклинания
+    else if (UI.placing || UI.casting) cv.style.cursor = 'default';
+    else {
       const e = enemyAt(w);
       const t = game.towerAt(w.tx, w.ty);
       cv.style.cursor = e || t ? 'pointer' : 'default';

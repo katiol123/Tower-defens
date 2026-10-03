@@ -56,7 +56,7 @@ TD.ACC = { R0: 2.5, DEV1: 62.5, DEV20: 26.0 };
 TD.TOWERS = [
   {
     id: 'rattle', name: 'Трещотка', title: 'Скорострельный арбалет',
-    stats: { dmg: 2, rate: null, acc: 5, range: 6 },
+    stats: { dmg: 4, rate: null, acc: 5, range: 6 }, dmgType: 'phys',
     rateLabel: 'очередь',
     perk: { icon: '⋙', name: 'Стрельба очередью', desc: 'Очередь из 12 болтов, затем перезарядка 3,5 с.' },
     burst: { shots: 12, gap: 0.085, reload: 3.5 },
@@ -65,7 +65,7 @@ TD.TOWERS = [
   },
   {
     id: 'thunder', name: 'Громобой', title: 'Бронзовая мортира',
-    stats: { dmg: 13, rate: 6, acc: 1, range: 11 },
+    stats: { dmg: 13, rate: 6, acc: 1, range: 11 }, dmgType: 'phys',
     perk: { icon: '✹', name: 'Урон по площади', desc: 'Ядро взрывается при попадании или на излёте: 60% урона всем в радиусе 1 клетки.' },
     splash: { radius: 1.0, mult: 0.6 },
     proj: { kind: 'shell', r: 5, speed: 8 },
@@ -73,7 +73,7 @@ TD.TOWERS = [
   },
   {
     id: 'dragon', name: 'Драконья пасть', title: 'Огнемёт',
-    stats: { dmg: 1, rate: 7, acc: 16, range: 1 },
+    stats: { dmg: 1, rate: 7, acc: 16, range: 1 }, dmgType: 'fire',
     perk: { icon: '🔥', name: 'Огненный поцелуй', desc: 'Пока видит цель, извергает струю огня конусом. Каждый сгусток пламени проходит насквозь и обжигает всех, кого коснётся.' },
     flame: { perRate: 10, grow: 2.4 },
     proj: { kind: 'flame', r: 5, speed: 4.2 },
@@ -81,7 +81,7 @@ TD.TOWERS = [
   },
   {
     id: 'falcon', name: 'Соколиный глаз', title: 'Дальнобойная баллиста',
-    stats: { dmg: 17, rate: 3, acc: 20, range: 18 },
+    stats: { dmg: 17, rate: 3, acc: 20, range: 18 }, dmgType: 'phys',
     perk: null,
     proj: { kind: 'lance', r: 2.5, speed: 24 },
     color: '#6fc3ff', price: 0,
@@ -91,23 +91,38 @@ TD.TOWERS = [
 TD.TOWER_PRICES = { rattle: 40, thunder: 145, dragon: 95, falcon: 140 };
 TD.TOWERS.forEach(t => { t.price = TD.TOWER_PRICES[t.id]; });
 
-// Фактические характеристики вышки из параметров 1–20.
-TD.towerActual = function (def) {
+// Типы урона (позже будут другие).
+TD.DMG_TYPE_LABEL = { phys: 'физ', fire: 'огонь' };
+
+// Места силы у дорожек: вышка на таком месте получает +30% к фактическому значению.
+TD.SPOT_BONUS = 0.3;
+TD.SPOTS = {
+  dmg:   { icon: '⚔', name: 'Место ярости', desc: '+30% к урону вышки', color: '#ff6a4a' },
+  range: { icon: '◎', name: 'Место дальнозоркости', desc: '+30% к дальности вышки', color: '#6fc3ff' },
+  rate:  { icon: '⚡', name: 'Место быстроты', desc: '+30% к скорострельности (у очереди — быстрее перезарядка)', color: '#ffd24a' },
+};
+TD.SPOT_COUNT = { min: 3, max: 5 };
+
+// Фактические характеристики вышки из параметров 1–20 (spot — вид места силы под вышкой).
+TD.towerActual = function (def, spot) {
   const s = def.stats;
+  const k = 1 + TD.SPOT_BONUS;
   const a = {
-    dmg: TD.F.damage(s.dmg),
-    range: TD.F.range(s.range),
+    dmg: TD.F.damage(s.dmg) * (spot === 'dmg' ? k : 1),
+    range: TD.F.range(s.range) * (spot === 'range' ? k : 1),
     dev: TD.F.aimDeviation(s.acc, def.proj.r),
     projSpeed: def.proj.speed,
   };
+  const fast = spot === 'rate' ? k : 1;
   if (def.burst) {
-    a.rate = def.burst.shots / (def.burst.shots * def.burst.gap + def.burst.reload);
+    a.reload = def.burst.reload / fast;          // у очереди ускоряется перезарядка
+    a.rate = def.burst.shots / (def.burst.shots * def.burst.gap + a.reload);
     a.cooldown = def.burst.gap;
   } else if (def.flame) {
-    a.rate = TD.F.fireRate(s.rate) * def.flame.perRate;
+    a.rate = TD.F.fireRate(s.rate) * def.flame.perRate * fast;
     a.cooldown = 1 / a.rate;
   } else {
-    a.rate = TD.F.fireRate(s.rate);
+    a.rate = TD.F.fireRate(s.rate) * fast;
     a.cooldown = 1 / a.rate;
   }
   a.dps = a.dmg * a.rate;

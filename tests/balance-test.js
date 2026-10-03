@@ -28,6 +28,7 @@ for (const def of TD.TOWERS) {
   for (let m = 0; m < MAPS; m++) {
     const game = new TD.Game(3000 + m);
     game.immortalCastle = true;
+    game.map.spots.length = 0;   // цены считаем для вышки без мест силы
     const rng = TD.makeRng(777 + m);
     const c = bestTile(game, def);
     const t = game.addTower(def, c.x, c.y, true);
