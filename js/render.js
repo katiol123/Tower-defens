@@ -481,7 +481,91 @@ var TD = globalThis.TD || (globalThis.TD = {});
         ctx.beginPath(); ctx.arc(-8, 0, 2.5, 0, TAU); ctx.fill();
         ctx.shadowBlur = 0;
       });
+    } else if (def.id === 'spire') {
+      // Тёмный каменный шпиль с парящим кристаллом
+      ctx.fillStyle = '#3d3550'; ctx.strokeStyle = outline; ctx.lineWidth = 2;
+      oct(ctx, 0, 8, 17); ctx.fill(); ctx.stroke();
+      const sg = ctx.createLinearGradient(-10, 0, 10, 0);
+      sg.addColorStop(0, '#5b4f78'); sg.addColorStop(0.5, '#7a6aa0'); sg.addColorStop(1, '#463c5e');
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.moveTo(-11, 12); ctx.lineTo(-6, -14); ctx.lineTo(0, -20); ctx.lineTo(6, -14); ctx.lineTo(11, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Руны
+      const glow = 0.55 + Math.sin(t * 3) * 0.25 + (o.firing ? 0.4 : 0);
+      ctx.strokeStyle = `rgba(200,150,255,${glow})`; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(-3, 6); ctx.lineTo(0, 0); ctx.lineTo(3, 6); ctx.moveTo(-2, -6); ctx.lineTo(2, -6); ctx.stroke();
+      // Кристалл
+      const cy = -30 + Math.sin(t * 2.2) * 2.5;
+      ctx.save();
+      ctx.shadowColor = '#b07cff'; ctx.shadowBlur = 12 + (o.firing ? 14 : 0);
+      const cg = ctx.createLinearGradient(0, cy - 9, 0, cy + 9);
+      cg.addColorStop(0, '#f2e4ff'); cg.addColorStop(0.5, '#b07cff'); cg.addColorStop(1, '#5a2fa0');
+      ctx.fillStyle = cg; ctx.strokeStyle = '#2a1a40'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, cy - 10); ctx.lineTo(6, cy); ctx.lineTo(0, cy + 10); ctx.lineTo(-6, cy); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.moveTo(0, cy - 8); ctx.lineTo(2.5, cy - 2); ctx.lineTo(0, cy); ctx.closePath(); ctx.fill();
+    } else if (def.id === 'frost') {
+      // Ледяной идол: снежный холм, ледяная глыба с ликом и кристаллами
+      ctx.fillStyle = '#dfeef7'; ctx.strokeStyle = outline; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(0, 9, 19, 10, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      const ig = ctx.createLinearGradient(-10, -24, 10, 10);
+      ig.addColorStop(0, '#e8fbff'); ig.addColorStop(0.5, '#8fe3ff'); ig.addColorStop(1, '#3e8fbf');
+      ctx.fillStyle = ig;
+      ctx.beginPath(); ctx.moveTo(-11, 10); ctx.lineTo(-12, -12); ctx.lineTo(-5, -24); ctx.lineTo(5, -24); ctx.lineTo(12, -12); ctx.lineTo(11, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Лик
+      const pulse = 0.6 + Math.sin(t * 2.5) * 0.3;
+      ctx.fillStyle = `rgba(230,250,255,${pulse})`; ctx.shadowColor = '#bff3ff'; ctx.shadowBlur = 8;
+      ctx.fillRect(-7, -12, 5, 2.5); ctx.fillRect(2, -12, 5, 2.5);
+      ctx.fillRect(-5, -3, 10, 2);
+      ctx.shadowBlur = 0;
+      // Боковые кристаллы
+      ctx.fillStyle = '#bdefff'; ctx.strokeStyle = outline; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-12, 8); ctx.lineTo(-20, -6); ctx.lineTo(-14, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, 8); ctx.lineTo(19, -9); ctx.lineTo(14, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (def.id === 'bell') {
+      // Деревянная сторожевая вышка с колоколом под крышей
+      ctx.strokeStyle = outline; ctx.lineWidth = 2;
+      ctx.fillStyle = '#6b4a2b';
+      ctx.beginPath(); ctx.moveTo(-14, 16); ctx.lineTo(-9, -14); ctx.lineTo(-5, -14); ctx.lineTo(-8, 16); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(14, 16); ctx.lineTo(9, -14); ctx.lineTo(5, -14); ctx.lineTo(8, 16); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#4a3220'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-11, 10); ctx.lineTo(10, -4); ctx.moveTo(11, 10); ctx.lineTo(-10, -4); ctx.stroke();
+      // Площадка и крыша
+      ctx.fillStyle = '#8a6238'; ctx.strokeStyle = outline; ctx.lineWidth = 2;
+      rr(ctx, -14, -18, 28, 6, 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#a63a2a';
+      ctx.beginPath(); ctx.moveTo(-17, -32); ctx.lineTo(0, -44); ctx.lineTo(17, -32); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#4a3220'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-12, -32); ctx.lineTo(-12, -18); ctx.moveTo(12, -32); ctx.lineTo(12, -18); ctx.stroke();
+      // Колокол покачивается
+      ctx.save(); ctx.translate(0, -32); ctx.rotate(Math.sin(t * 2) * 0.18);
+      const bg = ctx.createLinearGradient(-7, 0, 7, 0);
+      bg.addColorStop(0, '#b8872a'); bg.addColorStop(0.45, '#ffe08a'); bg.addColorStop(1, '#8a5f12');
+      ctx.fillStyle = bg; ctx.strokeStyle = outline; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-3, 2); ctx.quadraticCurveTo(-6, 4, -7, 12); ctx.lineTo(7, 12); ctx.quadraticCurveTo(6, 4, 3, 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#3a2a14'; ctx.beginPath(); ctx.arc(0, 13, 1.8, 0, TAU); ctx.fill();
+      ctx.restore();
     }
+  };
+  // Аура тотема и колокола на поле: постоянный едва заметный круг действия.
+  TD.drawAura = function (ctx, tw, t) {
+    const R = tw.act.range * T;
+    ctx.save();
+    if (tw.def.aura === 'frost') {
+      const g = ctx.createRadialGradient(tw.cx, tw.cy, R * 0.2, tw.cx, tw.cy, R);
+      g.addColorStop(0, 'rgba(160,230,255,0.02)'); g.addColorStop(0.85, 'rgba(160,230,255,0.08)'); g.addColorStop(1, 'rgba(190,240,255,0.16)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tw.cx, tw.cy, R, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(200,245,255,0.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 7]); ctx.lineDashOffset = -t * 8;
+      ctx.beginPath(); ctx.arc(tw.cx, tw.cy, R, 0, TAU); ctx.stroke();
+    } else if (tw.def.aura === 'bell') {
+      ctx.strokeStyle = 'rgba(255,215,122,0.22)'; ctx.lineWidth = 1.2; ctx.setLineDash([2, 9]); ctx.lineDashOffset = t * 6;
+      ctx.beginPath(); ctx.arc(tw.cx, tw.cy, R, 0, TAU); ctx.stroke();
+      // Зона «Боевого набата» — соседние клетки
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(255,215,122,0.18)'; ctx.lineWidth = 1;
+      const r = TD.BELL.radius;
+      rr(ctx, (tw.tx - r) * T + 3, (tw.ty - r) * T + 3, (2 * r + 1) * T - 6, (2 * r + 1) * T - 6, 10); ctx.stroke();
+    }
+    ctx.restore();
   };
   function oct(ctx, x, y, r) {
     ctx.beginPath();
@@ -554,7 +638,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.restore();
     }
     // «Скрытность»: вор полупрозрачный и слегка мерцает
-    if (e.perks.includes('stealth')) ctx.globalAlpha = 0.42 + Math.sin(o.t * 3 + e.id) * 0.08;
+    // Замеченный колоколом вор виден почти полностью.
+    if (e.perks.includes('stealth')) ctx.globalAlpha = e.revealed ? 0.9 : 0.42 + Math.sin(o.t * 3 + e.id) * 0.08;
     ctx.drawImage(img, -b.W / 2, -b.H / 2, b.W, b.H);
     ctx.globalAlpha = 1;
     if (e.frenzy && RED[e.sprite]) {
@@ -562,8 +647,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.drawImage(RED[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
       ctx.globalAlpha = 1;
     }
-    if (e.slowT > 0 && BLUE[e.sprite]) {
-      ctx.globalAlpha = 0.45;
+    if ((e.slowT > 0 || e.chill) && BLUE[e.sprite] && !TD.isImmune(e)) {
+      ctx.globalAlpha = e.slowT > 0 ? 0.45 : 0.28;
       ctx.drawImage(BLUE[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
       ctx.globalAlpha = 1;
     }
@@ -578,6 +663,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
     }
     ctx.restore();
     if (e.stupor > 0) drawStupor(ctx, b, e, o.t);
+    if (e.revealed && e.perks.includes('stealth')) {
+      // Глаз над замеченным вором
+      ctx.save();
+      ctx.font = '14px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+      ctx.textAlign = 'center'; ctx.fillText('👁️', b.cx, b.cy - b.H / 2 - 10);
+      ctx.restore();
+    }
     // Полоска здоровья
     if (e.hp < e.hpMax) {
       const w = 30 * Math.max(1, e.size), x = e.x - w / 2, y = b.cy - b.H / 2 - 6;
@@ -666,6 +758,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.fillStyle = '#2b2622'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(p.x - p.r * 0.35, p.y - p.r * 0.35, p.r * 0.35, 0, TAU); ctx.fill();
       ctx.restore();
+    } else if (p.kind === 'orb') {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3);
+      g.addColorStop(0, 'rgba(240,220,255,0.95)'); g.addColorStop(0.4, 'rgba(176,124,255,0.7)'); g.addColorStop(1, 'rgba(120,60,220,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 3, 0, TAU); ctx.fill();
+      ctx.restore();
+      if (Math.random() < 0.5) spawnFx({ t: 'spark', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, life: 0.3, col: '#c9a4ff' });
     } else if (p.kind === 'flame') {
       const life = Math.min(1, p.traveled / p.maxTravel);
       ctx.save();
@@ -688,7 +788,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   TD.consumeEvents = function (game, ui) {
     for (const ev of game.events) {
       if (ev.type === 'hit') {
-        const col = ev.kind === 'lance' ? '#bfe6ff' : '#ffe39a';
+        const col = ev.kind === 'lance' ? '#bfe6ff' : ev.kind === 'orb' ? '#d6b8ff' : '#ffe39a';
         for (let i = 0; i < 6; i++) { const q = Math.random() * TAU, s = 40 + Math.random() * 90; spawnFx({ t: 'spark', x: ev.x, y: ev.y, vx: Math.cos(q) * s, vy: Math.sin(q) * s, life: 0.25, col }); }
       } else if (ev.type === 'explode') {
         spawnFx({ t: 'ring', x: ev.x, y: ev.y, r: ev.r, life: 0.45 });
@@ -942,6 +1042,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
     // Сортировка по глубине: вышки, враги, замок
     const items = [];
+    for (const tw of game.towers) if (tw.def.aura) TD.drawAura(ctx, tw, t);
     for (const tw of game.towers) items.push({ y: tw.cy + 14, f: () => { ctx.save(); ctx.translate(tw.cx, tw.cy); TD.drawTower(ctx, tw.def, { angle: tw.angle, recoil: tw.recoil, firing: tw.firing, reload: tw.def.burst && tw.cd > tw.def.burst.gap ? tw.cd / tw.act.reload : 0, t }); ctx.restore(); } });
     for (const e of game.enemies) items.push({ y: e.y + 12, f: () => drawGoblin(ctx, e, { selected: ui.selectedEnemy === e.id, t }) });
     const c = game.map.castle;

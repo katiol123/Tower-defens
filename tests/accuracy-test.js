@@ -31,7 +31,7 @@ console.log(`${mono ? 'OK  ' : 'FAIL'} промахи убывают с рост
 ok = ok && mono;
 
 console.log('\nРеальные вышки (их снаряды, скорость и дальность), одиночные выстрелы:');
-for (const def of TD.TOWERS) {
+for (const def of TD.TOWERS.filter(d => d.stats.acc !== null)) {
   const r = measure({ acc: def.stats.acc, projR: def.proj.r, projSpeed: def.proj.speed, rangeParam: Math.max(3, def.stats.range), maps: Math.round(MAPS / 2), seed0: 70000 });
   console.log(`  ${def.name.padEnd(15)} точность ${String(def.stats.acc).padStart(2)}: промах ${pct(r.miss)} (${r.shots} выстр.)`);
 }

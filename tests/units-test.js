@@ -305,7 +305,7 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
 
 const MAPS = +(process.argv[2] || 100);
 console.log('\nПромахи по лютоволку (скорость 15), без перка и с «Серой молнией»:');
-for (const def of TD.TOWERS) {
+for (const def of TD.TOWERS.filter(d => d.stats.acc !== null)) {
   const o = { acc: def.stats.acc, projR: def.proj.r, projSpeed: def.proj.speed, rangeParam: Math.max(3, def.stats.range), maps: MAPS, seed0: 41000, unit: 'wolfrider', spd: 15 };
   const a = measure(Object.assign({ perks: [] }, o)), b = measure(Object.assign({ perks: ['blur'] }, o));
   console.log(`  ${def.name.padEnd(15)} точность ${String(def.stats.acc).padStart(2)} → ${String(Math.max(1, def.stats.acc - 3)).padStart(2)}: промах ${pct(a.miss).padStart(6)} → ${pct(b.miss).padStart(6)}`);

@@ -73,6 +73,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     bolt() { noise(0.06, 0.18, 'highpass', 2500, 2500, { q: 0.7 }); tone('square', rnd(700, 820), 260, 0.06, 0.05, { lp: 2500 }); },
     shell() { tone('sine', 120, 38, 0.35, 0.7); noise(0.25, 0.35, 'lowpass', 900, 200); },
     lance() { tone('triangle', rnd(950, 1050), 240, 0.18, 0.28); noise(0.22, 0.2, 'bandpass', 4000, 900, { q: 2 }); },
+    orb() { tone('sine', rnd(620, 700), 1200, 0.22, 0.16); tone('triangle', rnd(1300, 1400), 900, 0.18, 0.06); },
     explode() { tone('sine', 90, 30, 0.55, 0.9); noise(0.6, 0.6, 'lowpass', 2200, 120); noise(0.12, 0.25, 'highpass', 3000); },
     hit() { noise(0.07, 0.22, 'bandpass', rnd(700, 1000), 300, { q: 1.5 }); tone('sine', 180, 90, 0.07, 0.12); },
     death() {
@@ -144,7 +145,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     whoosh() { noise(0.25, 0.14, 'bandpass', 500, 2200, { q: 1.2 }); },
     deny() { tone('square', 220, 180, 0.12, 0.07, { lp: 1200 }); tone('square', 165, 140, 0.16, 0.07, { lp: 1200, delay: 0.1 }); },
   };
-  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000, meteor: 100, repair: 300, block: 70 };
+  const GAP = { bolt: 45, shell: 80, lance: 60, orb: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000, meteor: 100, repair: 300, block: 70 };
 
   // Звуки из файлов (assets/audio). Обычный HTML-аудио работает и при открытии index.html с диска.
   // Громкость выровнена: лёд записан тише остальных.

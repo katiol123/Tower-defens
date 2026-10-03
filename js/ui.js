@@ -37,19 +37,23 @@ var TD = globalThis.TD || (globalThis.TD = {});
           <span class="tc-key">${i + 1}</span>
         </div>
         <div class="tc-stats">
-          ${row('Урон', s.dmg, `${num(a.dmg)} (${TD.DMG_TYPE_LABEL[def.dmgType]})`, s.dmg * 5)}
-          ${def.burst
+          ${def.aura ? row('Урон', '—', 'не стреляет', 0) : row('Урон', s.dmg, `${num(a.dmg)} (${TD.DMG_TYPE_LABEL[def.dmgType]})`, s.dmg * 5)}
+          ${def.aura ? row('Скорость стрельбы', '—', 'не стреляет', 0)
+            : def.burst
             ? row('Скорость стрельбы', 'очередь', `${def.burst.shots}× / ${fmt(def.burst.shots * def.burst.gap + def.burst.reload, 1)} с`, 100, true)
             : row('Скорость стрельбы', s.rate, def.flame ? fmt(a.rate, 0) + ' сгуст./с' : fmt(a.rate, 1) + '/с', s.rate * 5)}
-          ${row('Точность', s.acc, '±' + fmt(a.dev, 0) + ' px', s.acc * 5)}
-          ${row('Дальность', s.range, fmt(a.range, 1) + ' кл', s.range * 5)}
+          ${def.aura ? row('Точность', '—', 'не стреляет', 0) : s.acc === null ? row('Точность', '∞', def.accLabel, 100) : row('Точность', s.acc, '±' + fmt(a.dev, 0) + ' px', s.acc * 5)}
+          ${row(def.aura ? 'Радиус действия' : 'Дальность', s.range, fmt(a.range, 1) + ' кл', s.range * 5)}
         </div>
-        ${def.perk ? `<div class="tc-perk"><span class="tc-perk-ico">${def.perk.icon}</span><div><b>${esc(def.perk.name)}.</b> ${esc(def.perk.desc)}</div></div>` : `<div class="tc-perk"><span class="tc-perk-ico">◎</span><div><b>Без перка.</b> Бьёт через всё поле и почти не мажет.</div></div>`}
+        ${[def.perk, def.perk2].filter(Boolean).map(pk => `<div class="tc-perk"><span class="tc-perk-ico">${pk.icon}</span><div><b>${esc(pk.name)}.</b> ${esc(pk.desc)}</div></div>`).join('') || `<div class="tc-perk"><span class="tc-perk-ico">◎</span><div><b>Без перка.</b> Бьёт через всё поле и почти не мажет.</div></div>`}
       `;
       const cv = card.querySelector('canvas');
       const cx = cv.getContext('2d');
       cx.scale(2, 2);
-      cx.translate(29, 33);
+      // Высокие вышки (шпиль с кристаллом, колокол под крышей) чуть уменьшаем, чтобы влезли в иконку.
+      const tall = def.id === 'bell' || def.id === 'spire';
+      cx.translate(29, tall ? 41 : 33);
+      if (tall) cx.scale(0.8, 0.8);
       TD.drawTower(cx, def, { angle: -Math.PI / 5 });
       card.addEventListener('click', () => { TD.Sound.play('click'); UI.selectPlacing(UI.placing === def ? null : def); });
       list.appendChild(card);
@@ -330,6 +334,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (e.blocks) extra.push(`🛡️ Отбито топором: <b>${e.blocks}</b>`);
     if (e.absorbed) extra.push(`🛡️ Шкура поглотила: <b>${fmt(Math.round(e.absorbed))}</b> урона`);
     if (e.slowT > 0) extra.push(`❄️ Скован льдом · ещё <b>${fmt(e.slowT, 1)} с</b>`);
+    if (e.chill && !TD.isImmune(e)) extra.push(`🧊 Вечная стужа тотема: <b>−${Math.round(TD.FROST_AURA.slow * 100)}%</b> скорости`);
+    if (e.revealed && e.perks.includes('stealth')) extra.push('👁️ Замечен дозорным колоколом — вышки его видят');
     if (e.burnT > 0) extra.push(`🔥 Горит · ещё <b>${fmt(e.burnT, 1)} с</b>`);
     if (e.stupor > 0) {
       status.hidden = false;
@@ -378,13 +384,19 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const refund = Math.floor(t.spent * TD.SELL_RATE);
     pop.innerHTML = `
       <div class="tp-head"><span class="tp-name">${esc(t.def.name)}</span><button class="tp-x" title="Закрыть">✕</button></div>
-      <div class="tp-sub">${esc(t.def.title)}${t.def.perk ? ' · ' + t.def.perk.icon + ' ' + esc(t.def.perk.name) : ''}</div>
+      <div class="tp-sub">${esc(t.def.title)}${[t.def.perk, t.def.perk2].filter(Boolean).map(pk => ' · ' + pk.icon + ' ' + esc(pk.name)).join('')}</div>
       ${t.spot ? `<div class="tp-spot" style="--sc:${TD.SPOTS[t.spot].color}">${TD.SPOTS[t.spot].icon} ${esc(TD.SPOTS[t.spot].name)}: ${esc(TD.SPOTS[t.spot].desc)}</div>` : ''}
-      <div class="tp-grid">
+      ${t.buffed ? `<div class="tp-spot" style="--sc:${TD.TOWERS.find(d => d.id === 'bell').color}">🔔 Боевой набат: +${TD.BELL.acc} к точности, ${t.def.burst ? `перезарядка −${fmt(TD.BELL.reload, 1)} с` : `+${TD.BELL.rate} к скорострельности`}</div>` : ''}
+      ${t.def.aura ? `<div class="tp-grid">
+        <span>${t.def.aura === 'frost' ? 'Радиус стужи' : 'Радиус дозора'} ${s.range}</span><b>${fmt(a.range, 1)} кл</b>
+        ${t.def.aura === 'frost' ? `<span>Замедление</span><b>−${Math.round(TD.FROST_AURA.slow * 100)}%</b>` : `<span>Набат</span><b>соседние клетки</b>`}
+        <span>Сейчас в зоне</span><b class="tp-zone">${UI.auraCount(t)}</b>
+      </div>` : `<div class="tp-grid">
         <span>Урон ${s.dmg}</span><b>${num(a.dmg)} (${TD.DMG_TYPE_LABEL[t.def.dmgType]})</b>
-        <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(a.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
-        <span>Точность ${s.acc}</span><b>±${fmt(a.dev, 0)} px</b>
+        <span>Скорострельность ${t.def.burst ? 'очередь' : s.rate + (t.buffed ? TD.BELL.rate : 0)}</span><b>${t.def.burst ? `${t.def.burst.shots}× / ${fmt(a.reload, 1)} с` : fmt(a.rate, t.def.flame ? 0 : 2) + (t.def.flame ? ' сгуст./с' : '/с')}</b>
+        <span>Точность ${a.acc === null ? '∞' : a.acc}</span><b>${a.acc === null ? t.def.accLabel : '±' + fmt(a.dev, 0) + ' px'}</b>
         <span>Дальность ${s.range}</span><b>${fmt(a.range, 1)} кл</b>
+        ${t.def.pierce ? `<span>Пробой чар</span><b class="tp-pierce">+${(t.pierce || 0) * 10}%</b>` : ''}
       </div>
       <div class="tp-sep"></div>
       <div class="tp-grid">
@@ -392,7 +404,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         <span>Попаданий</span><b class="tp-hits">${t.hits} (${hitPct})</b>
         <span>Нанесено урона</span><b class="tp-dmg">${fmt(t.dmgDealt)}</b>
         <span>Убито</span><b class="tp-kills">${t.kills}</b>
-      </div>
+      </div>`}
       <button class="tp-sell">Продать за ${refund} <span class="coin" style="display:inline-block;width:12px;height:12px;vertical-align:-1px"></span></button>`;
     pop.querySelector('.tp-x').onclick = () => UI.selectTower(null);
     pop.querySelector('.tp-sell').onclick = () => { UI.game.sellTower(t); UI.selectTower(null); };
@@ -409,11 +421,20 @@ var TD = globalThis.TD || (globalThis.TD = {});
     y = Math.max(10, Math.min(field.height - pop.offsetHeight - 10, y));
     pop.style.left = x + 'px'; pop.style.top = y + 'px';
   };
+  // Сколько врагов сейчас в зоне ауры (у колокола — замеченных воров).
+  UI.auraCount = function (t) {
+    if (!UI.game) return 0;
+    const R = t.act.range * TD.TILE;
+    const inZone = UI.game.enemies.filter(e => e.alive && Math.hypot(TD.enemyBox(e).cx - t.cx, TD.enemyBox(e).cy - t.cy) <= R);
+    return t.def.aura === 'frost' ? `${inZone.length} врагов` : `${inZone.filter(e => e.perks.includes('stealth')).length} воров`;
+  };
   UI.tickTowerPop = function () {
     const t = UI.selectedTower;
     if (!t) return;
     const pop = $('towerPop');
     const q = s => pop.querySelector(s);
+    if (q('.tp-zone')) q('.tp-zone').textContent = UI.auraCount(t);
+    if (q('.tp-pierce')) q('.tp-pierce').textContent = `+${(t.pierce || 0) * 10}%`;
     if (!q('.tp-shots')) return;
     q('.tp-shots').textContent = t.shots;
     q('.tp-hits').textContent = `${t.hits} (${t.shots ? Math.round(t.hits / t.shots * 100) + '%' : '—'})`;

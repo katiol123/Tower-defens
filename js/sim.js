@@ -124,7 +124,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
   function speedMult(e) {
     let m = 1;
     if (negActive(e, 'coward') && e.hp < e.hpMax / 2) m *= 0.7;
-    if (e.slowT > 0 && !TD.isImmune(e)) m *= 1 - TD.SPELL.frost.slow;
+    // Замедления не складываются: «Ледяная хватка» (50%) или «Вечная стужа» тотема (30%) — что сильнее.
+    if (!TD.isImmune(e)) m *= 1 - Math.max(e.slowT > 0 ? TD.SPELL.frost.slow : 0, e.chill ? TD.FROST_AURA.slow : 0);
     if (e.stupor > 0) m = 0;
     return m;
   }
@@ -152,7 +153,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
 
   // Точность вышки против конкретного врага («Серая молния» — на 3 меньше, не меньше 1).
-  TD.effectiveAcc = (tower, e) => e.perks.includes('blur') ? Math.max(1, tower.def.stats.acc - 3) : tower.def.stats.acc;
+  // Базовая точность — с учётом «Боевого набата» (tower.act.acc).
+  TD.effectiveAcc = (tower, e) => {
+    const a = tower.act && tower.act.acc != null ? tower.act.acc : tower.def.stats.acc;
+    return e.perks.includes('blur') ? Math.max(1, a - 3) : a;
+  };
+  // Видит ли вышка врага: «Скрытность» снимает только «Зоркий дозор» колокола.
+  TD.visible = e => !e.perks.includes('stealth') || !!e.revealed;
 
   // ---------------- Игра ----------------
   TD.Game = function (seed, opts) {
@@ -201,16 +208,34 @@ var TD = globalThis.TD || (globalThis.TD = {});
       angle: -Math.PI / 2, target: null, spent: free ? 0 : def.price,
       shots: 0, hits: 0, dmgDealt: 0, kills: 0, firing: 0, recoil: 0,
     };
-    t.act = TD.towerActual(def, t.spot);
+    t.buffed = this.bellNear(t);
+    t.act = TD.towerActual(def, t.spot, t.buffed);
     this.towers.push(t);
+    if (def.aura === 'bell') this.refreshBuffs();
     this.emit({ type: 'build', x: t.cx, y: t.cy });
     return t;
+  };
+
+  // «Боевой набат»: есть ли колокол в соседней клетке (включая диагонали).
+  G.bellNear = function (t) {
+    const r = TD.BELL.radius;
+    return this.towers.some(b => b !== t && b.def.aura === 'bell' && Math.abs(b.tx - t.tx) <= r && Math.abs(b.ty - t.ty) <= r);
+  };
+  // Пересчёт характеристик вышек, у которых появился или пропал колокол рядом.
+  G.refreshBuffs = function () {
+    for (const t of this.towers) {
+      const b = this.bellNear(t);
+      if (b === t.buffed) continue;
+      t.buffed = b;
+      t.act = TD.towerActual(t.def, t.spot, b);
+    }
   };
 
   G.sellTower = function (t) {
     const i = this.towers.indexOf(t);
     if (i < 0) return;
     this.towers.splice(i, 1);
+    if (t.def.aura === 'bell') this.refreshBuffs();
     const refund = Math.floor(t.spent * TD.SELL_RATE);
     this.gold += refund;
     this.emit({ type: 'sell', x: t.cx, y: t.cy, gold: refund });
@@ -291,8 +316,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
       t = Math.hypot(P.x - mx, P.y - my) / sp;
     }
     const ang = this.rng() * Math.PI * 2;
+    if (tower.def.homing) return { x: P.x, y: P.y, t };   // самонаводящийся заряд — без разброса
     const acc = TD.effectiveAcc(tower, e);
-    const dev = acc === tower.def.stats.acc ? tower.act.dev : TD.F.aimDeviation(acc, tower.def.proj.r);
+    const dev = acc === tower.act.acc ? tower.act.dev : TD.F.aimDeviation(acc, tower.def.proj.r);
     const rho = dev * Math.sqrt(this.rng());
     return { x: P.x + Math.cos(ang) * rho, y: P.y + Math.sin(ang) * rho, t };
   };
@@ -310,7 +336,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       r: def.proj.r, r0: def.proj.r, dmg: tower.act.dmg,
       traveled: 0, hitTarget: false, hitAny: false, done: false, hitSet: null, age: 0,
     };
-    if (def.flame) {
+    if (def.homing) {
+      p.homing = true;
+      p.maxTravel = tower.act.range * T() * 2.5;
+    } else if (def.flame) {
       p.maxTravel = tower.act.range * T() * 1.08;
       p.hitSet = new Set();
       p.grow = def.flame.grow;
@@ -564,7 +593,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const move = sp * dt;
     const steps = Math.max(1, Math.ceil(move / Math.max(1, p.r * 0.7)));
     const sdt = dt / steps;
+    // Самонаводящийся заряд: каждый шаг поворачивает к текущему центру цели, пока та жива.
+    const target = p.homing ? this.enemies.find(e => e.id === p.targetId && e.alive) : null;
     for (let s = 0; s < steps && !p.done; s++) {
+      if (target) {
+        const b = TD.enemyBox(target), dx = b.cx - p.x, dy = b.cy - p.y, L = Math.hypot(dx, dy) || 1;
+        p.vx = dx / L * sp; p.vy = dy / L * sp;
+      }
       p.px = p.x; p.py = p.y;
       p.x += p.vx * sdt; p.y += p.vy * sdt;
       p.traveled += sp * sdt;
@@ -582,7 +617,19 @@ var TD = globalThis.TD || (globalThis.TD = {});
           continue;
         }
         if (p.kind === 'shell') this.explode(p, p.x, p.y, e);
-        else { this.damage(e, p.dmg, p.tower, p.tower.def.dmgType); this.emit({ type: 'hit', x: p.x, y: p.y, kind: p.kind }); }
+        else {
+          let dmg = p.dmg;
+          const pc = p.tower.def.pierce;
+          if (pc) {
+            // «Пробой чар»: попадания подряд в одну цель усиливают заряд, смена цели — сброс.
+            const tw = p.tower;
+            tw.pierce = tw.pierceId === e.id ? Math.min(pc.max, (tw.pierce || 0) + 1) : 0;
+            tw.pierceId = e.id;
+            dmg *= 1 + pc.step * tw.pierce;
+          }
+          this.damage(e, dmg, p.tower, p.tower.def.dmgType);
+          this.emit({ type: 'hit', x: p.x, y: p.y, kind: p.kind });
+        }
         this.finishProjectile(p);
         break;
       }
@@ -595,6 +642,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
 
   G.updateTower = function (t, dt) {
+    if (t.def.aura) return;   // тотем и колокол не стреляют — их ауры считаются в update()
     t.cd -= dt;
     t.recoil = Math.max(0, t.recoil - dt * 6);
     t.firing = Math.max(0, t.firing - dt);
@@ -602,7 +650,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     // Цель — враг, прошедший дальше всех по маршруту, в радиусе действия. «Скрытность» — вышка его не видит.
     let best = null, bestProg = -1;
     for (const e of this.enemies) {
-      if (!e.alive || e.perks.includes('stealth')) continue;
+      if (!e.alive || !TD.visible(e)) continue;
       const b = TD.enemyBox(e);
       if (Math.hypot(b.cx - t.cx, b.cy - t.cy) > R) continue;
       const prog = e.dist / e.route.length;
@@ -632,6 +680,21 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (t.cd < 0) t.cd = t.act.cooldown;
   };
 
+  // Ауры вышек: «Вечная стужа» тотема (e.chill) и «Зоркий дозор» колокола (e.revealed) —
+  // действуют, пока центр спрайта врага в радиусе вышки.
+  G.updateAuras = function () {
+    const auras = this.towers.filter(t => t.def.aura);
+    for (const e of this.enemies) {
+      e.chill = false; e.revealed = false;
+      if (!auras.length) continue;
+      const b = TD.enemyBox(e);
+      for (const t of auras) {
+        if (Math.hypot(b.cx - t.cx, b.cy - t.cy) > t.act.range * T()) continue;
+        if (t.def.aura === 'frost') e.chill = true; else e.revealed = true;
+      }
+    }
+  };
+
   G.update = function (dt) {
     if (this.phase === 'won' || this.phase === 'lost') return;
     this.time += dt;
@@ -655,6 +718,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const madmen = this.enemies.filter(m => m.alive && m.perks.includes('warcry'));
     const R = TD.WARCRY.radius * T();
     for (const e of this.enemies) e.brave = madmen.some(m => m !== e && Math.hypot(m.x - e.x, m.y - e.y) <= R);
+    this.updateAuras();
     // Движение врагов
     for (const e of this.enemies) {
       if (!e.alive) continue;

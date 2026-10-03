@@ -22,8 +22,10 @@ function bestTile(game, def) {
   return best;
 }
 
+// Тотем и колокол не стреляют — их цены заданы вручную, в расчёте не участвуют.
+const SHOOTERS = TD.TOWERS.filter(d => !d.aura);
 const res = {};
-for (const def of TD.TOWERS) {
+for (const def of SHOOTERS) {
   let dmg = 0, kills = 0, shots = 0, hits = 0;
   for (let m = 0; m < MAPS; m++) {
     const game = new TD.Game(3000 + m);
@@ -48,7 +50,7 @@ for (const def of TD.TOWERS) {
   res[def.id] = { def, dmg: dmg / MAPS, kills: kills / MAPS, hitRate: hits / shots };
 }
 
-const avgVal = Object.values(res).reduce((s, r) => s + r.dmg, 0) / TD.TOWERS.length;
+const avgVal = Object.values(res).reduce((s, r) => s + r.dmg, 0) / SHOOTERS.length;
 console.log('Вышка            | урон/волну | убийств | попадания | факт. DPS | цена сейчас | цена по тесту');
 for (const id in res) {
   const r = res[id], a = TD.towerActual(r.def);

@@ -145,7 +145,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       resize();
     } else if (ev.key === 'm' || ev.key === 'M' || ev.key === 'ь' || ev.key === 'Ь') {
       TD.Sound.toggle(); syncSound();
-    } else if (/^[1-4]$/.test(ev.key)) {
+    } else if (/^[1-7]$/.test(ev.key)) {
       const def = TD.TOWERS[+ev.key - 1];
       UI.selectPlacing(UI.placing === def ? null : def);
     }

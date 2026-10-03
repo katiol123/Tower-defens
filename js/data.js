@@ -89,9 +89,40 @@ TD.TOWERS = [
     proj: { kind: 'lance', r: 2.5, speed: 24 },
     color: '#6fc3ff', price: 0,
   },
+  {
+    id: 'spire', name: 'Чародейский шпиль', title: 'Башня боевого мага',
+    stats: { dmg: 9, rate: 5, acc: null, range: 10 }, dmgType: 'magic',
+    accLabel: 'не мажет',
+    perk: { icon: '🔮', name: 'Самонаводящийся заряд', desc: 'Магический сгусток летит за целью и не промахивается. Магию не режут ни «Толстая шкура», ни топор, ни ярость.' },
+    perk2: { icon: '✴️', name: 'Пробой чар', desc: 'Каждое попадание подряд в ту же цель: +10% урона, до +50%. Смена цели сбрасывает.' },
+    homing: { turn: 14 },
+    pierce: { step: 0.1, max: 5 },
+    proj: { kind: 'orb', r: 4, speed: 9 },
+    color: '#b07cff', price: 0,
+  },
+  {
+    id: 'frost', name: 'Морозный тотем', title: 'Ледяной идол',
+    stats: { dmg: null, rate: null, acc: null, range: 6 }, dmgType: null,
+    aura: 'frost',
+    perk: { icon: '❄️', name: 'Вечная стужа', desc: 'Не стреляет. Все враги в радиусе действия замедлены на 30%, пока находятся в нём. Несколько тотемов не складываются; с «Ледяной хваткой» действует более сильное замедление.' },
+    proj: { kind: 'none', r: 0, speed: 0 },
+    color: '#8fe3ff', price: 0,
+  },
+  {
+    id: 'bell', name: 'Дозорный колокол', title: 'Сторожевая вышка',
+    stats: { dmg: null, rate: null, acc: null, range: 8 }, dmgType: null,
+    aura: 'bell',
+    perk: { icon: '👁️', name: 'Зоркий дозор', desc: 'Не стреляет. Воры в радиусе действия теряют «Скрытность» — вышки их видят. Выйдя из радиуса, вор снова невидим.' },
+    perk2: { icon: '🔔', name: 'Боевой набат', desc: 'Соседние вышки (в радиусе 1 клетки, включая диагонали): +2 к точности и +2 к скорострельности (у Трещотки — перезарядка на 0,5 с быстрее). Несколько колоколов не складываются.' },
+    proj: { kind: 'none', r: 0, speed: 0 },
+    color: '#ffd77a', price: 0,
+  },
 ];
+// «Вечная стужа» и «Боевой набат»
+TD.FROST_AURA = { slow: 0.3 };
+TD.BELL = { acc: 2, rate: 2, reload: 0.5, radius: 1 };
 // Цены подобраны тестом tests/balance-test.js (см. README).
-TD.TOWER_PRICES = { rattle: 70, thunder: 130, dragon: 80, falcon: 180 };
+TD.TOWER_PRICES = { rattle: 70, thunder: 130, dragon: 80, falcon: 180, spire: 95, frost: 90, bell: 100 };
 TD.TOWERS.forEach(t => { t.price = TD.TOWER_PRICES[t.id]; });
 
 // Типы урона (позже будут другие).
@@ -106,26 +137,32 @@ TD.SPOTS = {
 };
 TD.SPOT_COUNT = { min: 3, max: 5 };
 
-// Фактические характеристики вышки из параметров 1–20 (spot — вид места силы под вышкой).
-TD.towerActual = function (def, spot) {
+// Фактические характеристики вышки из параметров 1–20 (spot — вид места силы под вышкой,
+// buffed — рядом «Боевой набат»: +2 к точности и скорострельности).
+TD.towerActual = function (def, spot, buffed) {
   const s = def.stats;
   const k = 1 + TD.SPOT_BONUS;
+  const range = TD.F.range(s.range) * (spot === 'range' ? k : 1);
+  if (def.aura) return { dmg: 0, range, rate: 0, cooldown: Infinity, dps: 0, dev: 0, acc: null, projSpeed: 0 };
+  const acc = s.acc === null ? null : Math.min(20, s.acc + (buffed ? TD.BELL.acc : 0));
+  const rate = s.rate === null ? null : s.rate + (buffed ? TD.BELL.rate : 0);
   const a = {
     dmg: TD.F.damage(s.dmg) * (spot === 'dmg' ? k : 1),
-    range: TD.F.range(s.range) * (spot === 'range' ? k : 1),
-    dev: TD.F.aimDeviation(s.acc, def.proj.r),
+    range,
+    acc,
+    dev: acc === null ? 0 : TD.F.aimDeviation(acc, def.proj.r),
     projSpeed: def.proj.speed,
   };
   const fast = spot === 'rate' ? k : 1;
   if (def.burst) {
-    a.reload = def.burst.reload / fast;          // у очереди ускоряется перезарядка
+    a.reload = (def.burst.reload - (buffed ? TD.BELL.reload : 0)) / fast;   // у очереди ускоряется перезарядка
     a.rate = def.burst.shots / (def.burst.shots * def.burst.gap + a.reload);
     a.cooldown = def.burst.gap;
   } else if (def.flame) {
-    a.rate = TD.F.fireRate(s.rate) * def.flame.perRate * fast;
+    a.rate = TD.F.fireRate(rate) * def.flame.perRate * fast;
     a.cooldown = 1 / a.rate;
   } else {
-    a.rate = TD.F.fireRate(s.rate) * fast;
+    a.rate = TD.F.fireRate(rate) * fast;
     a.cooldown = 1 / a.rate;
   }
   a.dps = a.dmg * a.rate;
