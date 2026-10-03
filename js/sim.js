@@ -317,9 +317,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
     return p;
   };
 
-  G.damage = function (e, dmg, tower, fire) {
+  // type — тип урона: 'phys' (физ), 'fire' (огонь), 'magic' (магия). true/false — старая запись огонь/физ.
+  G.damage = function (e, dmg, tower, type) {
+    if (type === true) type = 'fire';
+    if (!type) type = 'phys';
+    const fire = type === 'fire';
     if (!e.alive) return 0;
-    if (e.frenzy) dmg *= 1 - TD.FRENZY.resist;
+    // «Грибное безумие» режет только физический урон; огонь и магия проходят полностью.
+    if (e.frenzy && type === 'phys') dmg *= 1 - TD.FRENZY.resist;
     dmg = Math.round(dmg * 100) / 100;
     e.calmT = 0;
     e.hitsTaken++;
@@ -472,7 +477,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       hitSet.add(next.id); chain.push(next); cur = next;
     }
     const pts = chain.map(e => { const b = TD.enemyBox(e); return { x: b.cx, y: b.cy }; });
-    chain.forEach((e, i) => this.damage(e, sp.dmg * Math.pow(1 - sp.falloff, i), null, false));
+    chain.forEach((e, i) => this.damage(e, sp.dmg * Math.pow(1 - sp.falloff, i), null, 'magic'));
     this.emit({ type: 'chain', pts });
   };
 
@@ -508,11 +513,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
   G.explode = function (p, x, y, direct) {
     const def = p.tower.def;
     const R = def.splash.radius * T();
-    if (direct) this.damage(direct, p.dmg, p.tower, false);
+    if (direct) this.damage(direct, p.dmg, p.tower, def.dmgType);
     for (const e of this.enemies) {
       if (!e.alive || e === direct) continue;
       const b = TD.enemyBox(e);
-      if (Math.hypot(b.cx - x, b.cy - y) <= R + 8) this.damage(e, p.dmg * def.splash.mult, p.tower, false);
+      if (Math.hypot(b.cx - x, b.cy - y) <= R + 8) this.damage(e, p.dmg * def.splash.mult, p.tower, def.dmgType);
     }
     this.emit({ type: 'explode', x, y, r: R });
   };
@@ -547,7 +552,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           continue;
         }
         if (p.kind === 'shell') this.explode(p, p.x, p.y, e);
-        else { this.damage(e, p.dmg, p.tower, false); this.emit({ type: 'hit', x: p.x, y: p.y, kind: p.kind }); }
+        else { this.damage(e, p.dmg, p.tower, p.tower.def.dmgType); this.emit({ type: 'hit', x: p.x, y: p.y, kind: p.kind }); }
         this.finishProjectile(p);
         break;
       }

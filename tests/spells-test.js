@@ -50,6 +50,21 @@ TD.enemySpeedPx = e => e.frozen ? 0 : origSpeed(e);
   check('метеор по троллю: 120 + поджог 4 с × 5 = 140', near(afterHit, 120) && near(t.hpMax - t.hp, 140), `${afterHit} + ${(t.hpMax - t.hp - afterHit).toFixed(1)}`);
 }
 
+// --- Ярость шамана режет только физический урон
+{
+  const g = new TD.Game(14); g.immortalCastle = true;
+  const sh = dummy(g, 'shaman', 0.4);
+  const res = {};
+  for (const type of ['phys', 'fire', 'magic']) { const h = sh.hp; g.damage(sh, 10, null, type); res[type] = +(h - sh.hp).toFixed(2); }
+  check('в ярости: физ 10 → 5, огонь 10 → 10, магия 10 → 10', res.phys === 5 && res.fire === 10 && res.magic === 10, JSON.stringify(res));
+  const tw = TD.TOWERS.find(d => d.id === 'dragon'), h0 = sh.hp;
+  g.damage(sh, 4, { def: tw, dmgDealt: 0 }, tw.dmgType);
+  check('Драконья пасть (огонь) пробивает ярость полностью', +(h0 - sh.hp).toFixed(2) === 4);
+  g.mana = 100; const b = TD.enemyBox(sh), h1 = sh.hp;
+  g.castSpell('chain', b.cx, b.cy);
+  check('цепная молния (магия) пробивает ярость полностью: 60', +(h1 - sh.hp).toFixed(2) === 60);
+}
+
 // --- Ледяная хватка
 {
   const g = new TD.Game(4); g.immortalCastle = true; g.mana = 100;

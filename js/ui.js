@@ -333,7 +333,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       status.innerHTML = `💫 Следующая проверка на ступор через <b>${fmt(TD.DUMB.every - e.dumbT, 1)} с</b>`;
     } else if (e.frenzy) {
       status.hidden = false;
-      status.innerHTML = `🍄 В ярости: −50% урона · спадёт через <b>${fmt(Math.max(0, TD.FRENZY.calm - e.calmT), 1)} с</b> без урона`;
+      status.innerHTML = `🍄 В ярости: −50% физ. урона · спадёт через <b>${fmt(Math.max(0, TD.FRENZY.calm - e.calmT), 1)} с</b> без урона`;
     } else if (e.perks.includes('frenzy')) {
       status.hidden = false;
       status.innerHTML = 'Ярость прошла';

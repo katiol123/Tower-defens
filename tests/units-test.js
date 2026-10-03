@@ -52,7 +52,7 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
   const step = sec => { for (let i = 0; i < Math.round(sec * 60); i++) gm.update(TD.DT); };
   const hp0 = sh.hp;
   step(8); gm.damage(sh, 10, null, false);
-  check('в ярости 50% сопротивления урону: 10 → 5', hp0 - sh.hp === 5, `${hp0 - sh.hp}`);
+  check('в ярости 50% сопротивления физ. урону: 10 → 5', hp0 - sh.hp === 5, `${hp0 - sh.hp}`);
   step(8);
   check('урон сбрасывает таймер: через 16 с (урон на 8-й) ярость ещё есть', sh.frenzy);
   step(2.2);
