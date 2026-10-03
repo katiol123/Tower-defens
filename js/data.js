@@ -73,9 +73,9 @@ TD.TOWERS = [
   },
   {
     id: 'dragon', name: 'Драконья пасть', title: 'Огнемёт',
-    stats: { dmg: 1, rate: 7, acc: 16, range: 1 }, dmgType: 'fire',
+    stats: { dmg: 1, rate: 7, acc: 16, range: 2 }, dmgType: 'fire',
     perk: { icon: '🔥', name: 'Огненный поцелуй', desc: 'Пока видит цель, извергает струю огня конусом. Каждый сгусток пламени проходит насквозь и обжигает всех, кого коснётся.' },
-    flame: { perRate: 10, grow: 2.4 },
+    flame: { perRate: 10, grow: 3.2 },
     proj: { kind: 'flame', r: 5, speed: 4.2 },
     color: '#ff5a2a', price: 0,
   },
