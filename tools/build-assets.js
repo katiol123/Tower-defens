@@ -45,6 +45,12 @@ const UNITS = {
     w: 1420, h: 1320, x: { front: 90, side: 90, back: 90 }, y: { front: 151, side: 78, back: 102 },
     foot: 1310, sideFaces: 'right', cell: 28, scale: 0.19,
   },
+  orc: {
+    // Исходники без прозрачности — фон снят и ракурсы выровнены скриптом tools/clean-orc.py.
+    src: v => `assets/source/orc_${v}.png`,
+    w: 1450, h: 1350, x: { front: 70, side: 70, back: 70 }, y: { front: 130, side: 130, back: 130 },
+    foot: 1340, sideFaces: 'right', cell: 28, scale: 0.19,
+  },
 };
 
 (async () => {

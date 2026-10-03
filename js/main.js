@@ -8,6 +8,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   const cv = $('cv');
   const ctx = cv.getContext('2d');
   const view = { scale: 1, ox: 0, oy: 0, dpr: 1 };
+  TD.VIEW = view;   // для отладки и скриншотов: мировые координаты → экранные
   let game = null;
   let speed = 1;
   let acc = 0;

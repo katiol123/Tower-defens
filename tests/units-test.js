@@ -204,7 +204,8 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
   const gq = new TD.Game(43, { level: 2 }); gq.wave = 1; gq.startWave();
   const q = gq.spawnQueue, si = q.findIndex(x => x.type === 'shaman');
   check('в расписании первый шаман появляется в тот же момент, что и безумный', q[si - 1].type === 'madgoblin' && q[si - 1].at === q[si].at);
-  check('у уровня 2 нет босса, замок 20 и 500 золота', !TD.WAVE_LIST.some(w => w.boss) && gq.castleHp === 20 && TD.START_GOLD === 500);
+  check('у уровня 2 босс только в последней волне, замок 20 и 500 золота',
+    TD.WAVE_LIST.findIndex(w => w.boss) === TD.WAVES - 1 && gq.castleHp === 20 && TD.START_GOLD === 500);
   TD.setLevel(1);
 }
 
@@ -257,6 +258,49 @@ check('точность 20 → 17, 3 → 1, 1 → 1',
   const gaps = tpos.slice(1).map((p, i) => p - tpos[i]);
   check('воры распределены равномерно по волне', Math.max(...gaps) - Math.min(...gaps) <= 1 && tpos[0] <= 6 && w3.count - 1 - tpos[4] <= 6, tpos.join(', '));
   TD.setLevel(1);
+}
+
+// Босс второго уровня: Орк
+{
+  const o = TD.createUnit('orc', TD.makeRng(61));
+  check('Орк: здоровье (5000 + 1000 × 8) / 2 = 6500, сила 20, скорость 5, спрайт ×2, как у тролля',
+    o.hpMax === 6500 && o.stats.str === 20 && o.stats.spd === 5 && o.size === TD.GIANT.size && o.boss && o.kind === 'Босс второго уровня',
+    `hp ${o.hpMax}, size ${o.size}`);
+  check('Орк: перки «Великан» и «Толстая шкура», техника 3 − 2 + 2 = 3', o.perks.join() === 'giant,ironhide' && o.stats.tech === 3);
+  // «Толстая шкура»: −5 от каждого физического попадания, огонь и магия — полностью
+  const g = new TD.Game(62, { level: 2 });
+  const e = TD.createUnit('orc', g.rng); g.spawnEnemy(e, 0);
+  let h = e.hp; g.damage(e, 42.8, null, 'phys');
+  check('физическое попадание 42,8 → 37,8', Math.abs(h - e.hp - 37.8) < 1e-9, `${(h - e.hp).toFixed(2)}`);
+  h = e.hp; g.damage(e, 3, null, 'phys');
+  check('слабое физическое попадание (3) поглощается целиком', e.hp === h && e.absorbed === 8);
+  h = e.hp; g.damage(e, 10, null, 'fire'); g.damage(e, 10, null, 'magic');
+  check('огонь и магия проходят без вычета', Math.abs(h - e.hp - 20) < 1e-9);
+  // Последняя волна уровня 2: первым — орк, за ним группами гоблины и наездники
+  const w = TD.waveDef(TD.WAVES);
+  check('последняя волна уровня 2 — босс: первым выходит Орк, дальше только гоблины и наездники',
+    w.boss && w.list[0].type === 'orc' && w.list.slice(1).every(x => x.code === 'G' || x.code === 'W'), `${w.count} врагов`);
+  g.wave = TD.WAVES - 1; g.startWave();
+  const q = g.spawnQueue;
+  const groups = []; let cur = null;
+  for (let i = 1; i < q.length; i++) {
+    if (!cur || q[i].at - q[i - 1].at > 2) groups.push(cur = []);
+    cur.push(q[i]);
+  }
+  check('свита выходит после орка группами с паузами', q[0].type === 'orc' && q[1].at - q[0].at > 3 && groups.length === 6,
+    `групп ${groups.length}: ${groups.map(x => x.length).join(', ')}`);
+  check('каждая группа идёт по одной тропе, первая — вслед за орком',
+    groups.every(gr => gr.every(x => x.path === gr[0].path)) && groups[0][0].path === q[0].path);
+  TD.setLevel(1);
+}
+
+// Боссы-великаны стоят на дороге так же, как обычные враги: ноги на 14 px ниже точки маршрута
+{
+  for (const type of ['troll', 'orc', 'goblin']) {
+    const e = TD.createUnit(type, TD.makeRng(70)), b = TD.enemyBox(e), sp = TD.SPRITES[e.sprite];
+    const feet = b.cy - b.H / 2 + sp.foot * b.H - e.y;
+    check(`${TD.UNITS[type].name}: ноги на линии дороги (+14 px)`, Math.abs(feet - 14) < 1e-6, feet.toFixed(2));
+  }
 }
 
 const MAPS = +(process.argv[2] || 100);

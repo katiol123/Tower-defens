@@ -24,10 +24,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
     return MASKS[sprite];
   }
 
-  // Смещение центра спрайта над точкой на дороге: ноги стоят на 14 px ниже точки маршрута.
+  // Смещение центра спрайта над точкой на дороге: ноги стоят на 14 px ниже точки маршрута —
+  // у всех, в том числе у великанов (иначе крупный босс «съезжает» с дороги вниз).
   function centerLift(e) {
     const sp = TD.SPRITES[e.sprite], H = e.height * e.size;
-    return (sp.foot - 0.5) * H - 14 * e.size;
+    return (sp.foot - 0.5) * H - 14;
   }
 
   // Геометрия спрайта врага: центр (с учётом покачивания при ходьбе), размеры.
@@ -81,7 +82,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const e = {
       id: nextId++, type,
       name: opts.name || (U.boss ? U.name : rng.pick(TD.GOBLIN_FIRST) + ' ' + rng.pick(TD.GOBLIN_LAST)),
-      kind: opts.kind || (U.boss ? 'Босс первого уровня' : U.name),
+      kind: opts.kind || U.kind || U.name,
       sprite: U.sprite, height: U.height,
       base, stats: st, perks,
       hpMax, hp: hpMax,
@@ -254,10 +255,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
       crowd = { from: this.rng.int(0, w.count - size), size, path: this.rng.int(0, this.map.paths.length - 1) };
     }
     let t = this.time + 0.4;
+    // В волне босса свита выходит группами (между ними паузы «.»): вся группа идёт по одной тропе,
+    // первая — вслед за боссом, следующие — по очереди по остальным.
+    let group = -1;
     for (let i = 0; i < w.count; i++) {
       const type = w.list[i].type;
+      if (w.list[i].pause) { t += w.list[i].pause * w.gap; group++; }
       const inCrowd = crowd && i >= crowd.from && i < crowd.from + crowd.size;
-      const path = TD.UNITS[type].boss ? longest : inCrowd ? crowd.path : i % this.map.paths.length;
+      const path = TD.UNITS[type].boss ? longest : inCrowd ? crowd.path
+        : w.boss && group >= 0 ? (longest + group) % this.map.paths.length : i % this.map.paths.length;
       this.spawnQueue.push({ at: t, path, type, wave: this.wave, crowd: !!inCrowd });
       const nextInCrowd = crowd && i + 1 >= crowd.from && i + 1 < crowd.from + crowd.size;
       if (i + 1 < w.count && w.list[i + 1].together) {
@@ -337,6 +343,17 @@ var TD = globalThis.TD || (globalThis.TD = {});
       e.blocks = (e.blocks || 0) + 1;
       this.emit({ type: 'block', e, x: e.x, y: e.y - 30 * e.size });
       return 0;
+    }
+    // «Толстая шкура»: каждое физическое попадание слабее на 5 (до нуля).
+    if (type === 'phys' && e.perks.includes('ironhide')) {
+      const cut = Math.min(dmg, TD.IRONHIDE.block);
+      e.absorbed = (e.absorbed || 0) + cut;
+      dmg -= cut;
+      if (dmg <= 0) {
+        e.hitsTaken++;
+        this.emit({ type: 'block', e, x: e.x, y: e.y - 30 * e.size, hide: true });
+        return 0;
+      }
     }
     dmg = Math.round(dmg * 100) / 100;
     e.calmT = 0;

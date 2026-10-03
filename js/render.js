@@ -506,13 +506,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
   function drawGoblin(ctx, e, o) {
     const b = TD.enemyBox(e);
     const img = imgOf(e);
-    shadow(ctx, e.x, e.y + 13 * e.size, Math.max(4, b.W * (e.view === 'side' ? 0.36 : 0.28) - Math.min(e.bob, 6) * 0.6), 4.5 * e.size, 0.32);
+    shadow(ctx, e.x, e.y + 13, Math.max(4, b.W * (e.view === 'side' ? 0.36 : 0.28) - Math.min(e.bob, 6) * 0.6), 4.5 * e.size, 0.32);
     if (o && o.selected) {
       const pulse = 0.5 + Math.sin(o.t * 6) * 0.5;
       ctx.save();
       ctx.strokeStyle = `rgba(255,217,138,${0.55 + pulse * 0.4})`;
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(e.x, e.y + 13 * e.size, 17 * e.size + pulse * 3, 7 * e.size + pulse, 0, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(e.x, e.y + 13, 17 * e.size + pulse * 3, 7 * e.size + pulse, 0, 0, TAU); ctx.stroke();
       ctx.restore();
     }
     if (e.perks.includes('warcry')) {
@@ -534,7 +534,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.beginPath(); ctx.arc(b.cx, b.cy, R, 0, TAU); ctx.fill();
       ctx.save();
       ctx.strokeStyle = `rgba(255,90,40,${0.8 * k})`; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.ellipse(e.x, e.y + 13 * e.size, b.W * 0.42 + k * 4, 8 + k * 2, 0, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(e.x, e.y + 13, b.W * 0.42 + k * 4, 8 + k * 2, 0, 0, TAU); ctx.stroke();
       ctx.restore();
       if (Math.random() < 0.45) spawnFx({ t: 'ember', x: b.cx + (Math.random() - 0.5) * b.W * 0.6, y: b.cy + b.H * (Math.random() * 0.4), vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 40, life: 0.6 });
     }
@@ -752,7 +752,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         spawnFx({ t: 'text', x: (c.x + c.w / 2) * T, y: c.y * T - 10, s: `−${ev.gold} 💰 украдено!`, col: '#ffcf4a', life: 2.0, big: true });
         for (let i = 0; i < 14; i++) spawnFx({ t: 'coin', x: (c.x + 0.2) * T + (Math.random() - 0.5) * 30, y: (c.y + 1.5) * T, v: '', life: 0.9 + Math.random() * 0.4 });
       } else if (ev.type === 'block') {
-        spawnFx({ t: 'text', x: ev.x, y: ev.y - 6, s: 'Блок!', col: '#d9e2ea', life: 0.8 });
+        spawnFx({ t: 'text', x: ev.x, y: ev.y - 6, s: ev.hide ? 'Шкура!' : 'Блок!', col: '#d9e2ea', life: 0.8 });
         for (let i = 0; i < 6; i++) { const q = Math.random() * TAU; spawnFx({ t: 'spark', x: ev.x, y: ev.y + 12, vx: Math.cos(q) * 110, vy: Math.sin(q) * 110, life: 0.22, col: '#f2f6ff' }); }
       } else if (ev.type === 'kick') {
         const e = ev.e, dir = e.x < ev.troll.x ? -1 : 1;
@@ -968,7 +968,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
         if (e) {
           const b = TD.enemyBox(e);
           ctx.strokeStyle = 'rgba(190,225,255,0.95)'; ctx.lineWidth = 2.5;
-          ctx.beginPath(); ctx.ellipse(b.cx, e.y + 13 * e.size, b.W * 0.45, 8 * e.size, 0, 0, TAU); ctx.stroke();
+          ctx.beginPath(); ctx.ellipse(b.cx, e.y + 13, b.W * 0.45, 8 * e.size, 0, 0, TAU); ctx.stroke();
           ctx.strokeStyle = 'rgba(190,225,255,0.25)'; ctx.setLineDash([4, 6]);
           ctx.beginPath(); ctx.arc(b.cx, b.cy, TD.SPELL.chain.jumpRange * T, 0, TAU); ctx.stroke();
           ctx.setLineDash([]);

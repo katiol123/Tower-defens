@@ -168,7 +168,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (ev.type === 'wave') {
         const w = TD.waveDef(ev.n);
         const n = ch => (w.units.match(new RegExp(ch, 'g')) || []).length;
-        if (w.boss) UI.banner('Босс: Тролль-мусорщик', 'На нём живут гоблины. Не дайте ему дойти до замка!', 3000);
+        const bossType = w.boss && w.list.find(u => TD.UNITS[u.type].boss);
+        if (bossType) { const U = TD.UNITS[bossType.type]; UI.banner('Босс: ' + U.name, U.banner, 3000); }
         else UI.banner(`Волна ${ev.n}`, [`${n('G')} гоблинов`, n('M') && `${n('M')} безумных`, n('T') && `${n('T')} воров`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
       } else if (ev.type === 'waveEnd' && ev.n < TD.WAVES) {
         UI.banner(`Волна ${ev.n} отбита!`, `+${ev.reward} золота`, 1800);
@@ -327,6 +328,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const extra = [];
     if (e.brave && e.perks.includes('coward')) extra.push('🪓 Воодушевлён безумцем — не трусит');
     if (e.blocks) extra.push(`🛡️ Отбито топором: <b>${e.blocks}</b>`);
+    if (e.absorbed) extra.push(`🛡️ Шкура поглотила: <b>${fmt(Math.round(e.absorbed))}</b> урона`);
     if (e.slowT > 0) extra.push(`❄️ Скован льдом · ещё <b>${fmt(e.slowT, 1)} с</b>`);
     if (e.burnT > 0) extra.push(`🔥 Горит · ещё <b>${fmt(e.burnT, 1)} с</b>`);
     if (e.stupor > 0) {
