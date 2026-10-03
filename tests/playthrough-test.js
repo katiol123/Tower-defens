@@ -4,6 +4,8 @@
 const TD = require('./load');
 const GAMES = +(process.argv[2] || 40);
 const LEVEL = +(process.argv[3] || 1);
+// CRYSTALS=1 — с тёмными кристаллами (по умолчанию тесты без них).
+if (process.env.CRYSTALS) TD.NO_CRYSTALS = false;
 
 function coverage(game, def, x, y) {
   const R = TD.F.range(def.stats.range) * TD.TILE;

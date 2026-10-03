@@ -546,6 +546,68 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.restore();
     }
   };
+  // ---------------- Тёмный кристалл ----------------
+  TD.drawCrystalAura = function (ctx, c, t) {
+    if (!c.alive) return;
+    const R = TD.F.range(TD.CRYSTAL.range) * T;
+    ctx.save();
+    const g = ctx.createRadialGradient(c.x, c.y, R * 0.15, c.x, c.y, R);
+    g.addColorStop(0, 'rgba(120,40,200,0.10)'); g.addColorStop(0.8, 'rgba(90,20,160,0.06)'); g.addColorStop(1, 'rgba(150,60,255,0.14)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(170,90,255,0.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 9]); ctx.lineDashOffset = t * 10;
+    ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, TAU); ctx.stroke();
+    ctx.restore();
+  };
+  function drawCrystal(ctx, c, t) {
+    const x = c.x, y = c.y;
+    shadow(ctx, x, y + 2, 17, 6, 0.4);
+    ctx.save();
+    ctx.translate(x, y);
+    // Каменное основание
+    ctx.fillStyle = '#2b2530'; ctx.strokeStyle = '#120c16'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-17, 2); ctx.lineTo(-12, -6); ctx.lineTo(10, -7); ctx.lineTo(17, 1); ctx.lineTo(9, 6); ctx.lineTo(-10, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (!c.alive) {
+      // Осколки разрушенного кристалла
+      ctx.fillStyle = '#3a2350';
+      [[-8, -4, 5], [4, -6, 6], [10, -2, 4], [-2, -1, 4]].forEach(([sx, sy, r]) => { ctx.beginPath(); ctx.moveTo(sx - r, sy); ctx.lineTo(sx, sy - r * 1.4); ctx.lineTo(sx + r, sy); ctx.closePath(); ctx.fill(); ctx.stroke(); });
+      ctx.restore();
+      return;
+    }
+    const pulse = 0.5 + Math.sin(t * 2.4 + c.tx) * 0.5;
+    // Свечение
+    const gl = ctx.createRadialGradient(0, -20, 2, 0, -20, 34);
+    gl.addColorStop(0, `rgba(190,110,255,${0.35 + pulse * 0.25})`); gl.addColorStop(1, 'rgba(120,40,220,0)');
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, -20, 34, 0, TAU); ctx.fill();
+    const shard = (sx, h, w, lean) => {
+      const g = ctx.createLinearGradient(sx - w, -h, sx + w, 0);
+      g.addColorStop(0, '#b78cff'); g.addColorStop(0.35, '#5a1fa0'); g.addColorStop(0.75, '#25093f'); g.addColorStop(1, '#12041f');
+      ctx.fillStyle = g; ctx.strokeStyle = '#0c0314'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(sx - w, -4); ctx.lineTo(sx - w * 0.6 + lean, -h * 0.82); ctx.lineTo(sx + lean, -h); ctx.lineTo(sx + w * 0.7 + lean, -h * 0.78); ctx.lineTo(sx + w, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Грань-блик
+      ctx.strokeStyle = `rgba(230,200,255,${0.45 + pulse * 0.3})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx + lean, -h + 2); ctx.lineTo(sx - w * 0.2, -6); ctx.stroke();
+    };
+    shard(-9, 24, 6, -4);
+    shard(10, 22, 6, 4);
+    shard(0, 46, 9, 0);
+    // Руна-сердцевина
+    ctx.fillStyle = `rgba(255,220,255,${0.5 + pulse * 0.5})`; ctx.shadowColor = '#d9a0ff'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(3, -24); ctx.lineTo(0, -18); ctx.lineTo(-3, -24); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    if (c.hitFlash > 0) {
+      ctx.globalAlpha = Math.min(1, c.hitFlash * 7) * 0.6; ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(-9, -4); ctx.lineTo(0, -46); ctx.lineTo(9, -4); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    if (Math.random() < 0.08) spawnFx({ t: 'spark', x: x + (Math.random() - 0.5) * 20, y: y - 10 - Math.random() * 30, vx: (Math.random() - 0.5) * 10, vy: -20 - Math.random() * 15, life: 0.9, col: '#c79bff' });
+    if (c.hp < c.hpMax) {
+      const w = 34, bx = x - w / 2, by = y - 56;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; rr(ctx, bx - 1, by - 1, w + 2, 5, 2.5); ctx.fill();
+      ctx.fillStyle = '#b06aff'; rr(ctx, bx, by, w * c.hp / c.hpMax, 3, 1.5); ctx.fill();
+    }
+  }
+
   // Аура тотема и колокола на поле: постоянный едва заметный круг действия.
   TD.drawAura = function (ctx, tw, t) {
     const R = tw.act.range * T;
@@ -623,6 +685,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (Math.random() < 0.45) spawnFx({ t: 'ember', x: b.cx + (Math.random() - 0.5) * b.W * 0.6, y: b.cy + b.H * (Math.random() * 0.4), vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 40, life: 0.6 });
     }
     if (e.burnT > 0 && Math.random() < 0.35) spawnFx({ t: 'ember', x: b.cx + (Math.random() - 0.5) * b.W * 0.5, y: b.cy + (Math.random() - 0.2) * b.H * 0.5, vx: (Math.random() - 0.5) * 15, vy: -35 - Math.random() * 30, life: 0.5 });
+    if (e.empowered) {
+      // «Тёмная сила» кристалла: фиолетовое кольцо под ногами и искры
+      ctx.save();
+      ctx.strokeStyle = `rgba(180,100,255,${0.55 + Math.sin(o.t * 6 + e.id) * 0.2})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(e.x, e.y + 13, b.W * 0.36 + 3, 6 * Math.max(1, e.size * 0.8), 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+      if (Math.random() < 0.18) spawnFx({ t: 'spark', x: b.cx + (Math.random() - 0.5) * b.W * 0.5, y: b.cy + (Math.random() - 0.3) * b.H * 0.5, vx: (Math.random() - 0.5) * 12, vy: -25 - Math.random() * 20, life: 0.5, col: '#c79bff' });
+    }
     if (e.slowT > 0 && Math.random() < 0.12) spawnFx({ t: 'snow', x: b.cx + (Math.random() - 0.5) * b.W * 0.6, y: b.cy - b.H * 0.3, vx: (Math.random() - 0.5) * 10, vy: 18, life: 0.8 });
     if (!img) return;
     ctx.save();
@@ -851,6 +921,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
         const c = game.map.castle;
         spawnFx({ t: 'text', x: (c.x + c.w / 2) * T, y: c.y * T - 10, s: `−${ev.gold} 💰 украдено!`, col: '#ffcf4a', life: 2.0, big: true });
         for (let i = 0; i < 14; i++) spawnFx({ t: 'coin', x: (c.x + 0.2) * T + (Math.random() - 0.5) * 30, y: (c.y + 1.5) * T, v: '', life: 0.9 + Math.random() * 0.4 });
+      } else if (ev.type === 'crystalBreak') {
+        spawnFx({ t: 'ring', x: ev.x, y: ev.y, r: 60, life: 0.6 });
+        spawnFx({ t: 'text', x: ev.x, y: ev.y - 40, s: 'Кристалл разрушен!', col: '#d9b0ff', life: 1.4, big: true });
+        for (let i = 0; i < 26; i++) { const q = Math.random() * TAU, sp = 60 + Math.random() * 160; spawnFx({ t: 'spark', x: ev.x, y: ev.y, vx: Math.cos(q) * sp, vy: Math.sin(q) * sp - 40, life: 0.6 + Math.random() * 0.3, col: i % 2 ? '#b78cff' : '#f0dcff' }); }
       } else if (ev.type === 'block') {
         spawnFx({ t: 'text', x: ev.x, y: ev.y - 6, s: ev.hide ? 'Шкура!' : 'Блок!', col: '#d9e2ea', life: 0.8 });
         for (let i = 0; i < 6; i++) { const q = Math.random() * TAU; spawnFx({ t: 'spark', x: ev.x, y: ev.y + 12, vx: Math.cos(q) * 110, vy: Math.sin(q) * 110, life: 0.22, col: '#f2f6ff' }); }
@@ -1042,6 +1116,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
     // Сортировка по глубине: вышки, враги, замок
     const items = [];
+    for (const c of game.crystals) items.push({ y: c.y, f: () => drawCrystal(ctx, c, t) });
+    for (const c of game.crystals) TD.drawCrystalAura(ctx, c, t);
     for (const tw of game.towers) if (tw.def.aura) TD.drawAura(ctx, tw, t);
     for (const tw of game.towers) items.push({ y: tw.cy + 14, f: () => { ctx.save(); ctx.translate(tw.cx, tw.cy); TD.drawTower(ctx, tw.def, { angle: tw.angle, recoil: tw.recoil, firing: tw.firing, reload: tw.def.burst && tw.cd > tw.def.burst.gap ? tw.cd / tw.act.reload : 0, t }); ctx.restore(); } });
     for (const e of game.enemies) items.push({ y: e.y + 12, f: () => drawGoblin(ctx, e, { selected: ui.selectedEnemy === e.id, t }) });

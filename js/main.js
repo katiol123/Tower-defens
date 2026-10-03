@@ -53,7 +53,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const n = game.map.paths.length;
     const merges = game.map.paths.filter(p => p.mergeInto >= 0).length;
     $('seedLbl').textContent = `Карта #${seed} · дорожек: ${n}${merges ? ` · слияний: ${merges}` : ''}`;
-    UI.banner(`Уровень ${UI.level} · ${L.name}`, `${n === 1 ? 'Одна тропа' : n === 2 ? 'Две тропы' : 'Три тропы'} ведут к замку. Стройте вышки и жмите «В бой!»`, 3200);
+    UI.banner(`Уровень ${UI.level} · ${L.name}`, `${n === 1 ? 'Одна тропа' : n === 2 ? 'Две тропы' : 'Три тропы'} ведут к замку.${game.crystals.length ? ` У дорог ${game.crystals.length} тёмных кристаллов — они усиливают врагов.` : ""} Стройте вышки и жмите «В бой!»`, 3600);
     UI.updateHud(game);
   };
 
@@ -72,7 +72,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     else {
       const e = enemyAt(w);
       const t = game.towerAt(w.tx, w.ty);
-      cv.style.cursor = e || t ? 'pointer' : 'default';
+      cv.style.cursor = e || t || crystalAt(w) ? 'pointer' : 'default';
     }
   });
   cv.addEventListener('mouseleave', () => { UI.hover = null; });
@@ -83,6 +83,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
     for (const e of game.enemies) if (TD.hitTest(e, w.x, w.y, 3)) best = e;
     return best;
   }
+
+  const crystalAt = w => game.crystals.find(c => c.alive && TD.hitTest(c, w.x, w.y, 6));
 
   cv.addEventListener('click', ev => {
     const w = toWorld(ev);
@@ -104,6 +106,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
     }
     const e = enemyAt(w);
     if (e) { TD.Sound.play('click'); UI.openEnemy(e); return; }
+    const c = crystalAt(w);
+    if (c) {
+      TD.Sound.play('click');
+      UI.banner(`💎 Тёмный кристалл · ${Math.ceil(c.hp)} / ${c.hpMax}`, `Враги в радиусе ${String(TD.F.range(TD.CRYSTAL.range)).replace('.', ',')} клетки: +${TD.CRYSTAL.bonus} к выносливости, силе и скорости. Вышки стреляют по нему наравне с врагами.`, 2600);
+      return;
+    }
     const t = game.towerAt(w.tx, w.ty);
     if (t) TD.Sound.play('click');
     UI.selectTower(t || null, view);

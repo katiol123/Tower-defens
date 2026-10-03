@@ -211,6 +211,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'fire': if (ev.kind !== 'flame') play(ev.kind); break;
           case 'hit': play('hit'); break;
           case 'explode': play('explode'); break;
+          case 'crystalBreak': play('explode'); break;
           case 'death': play('death'); setTimeout(() => play('coin'), 90); break;
           case 'castle': play('castle'); break;
           case 'build': play('build'); break;

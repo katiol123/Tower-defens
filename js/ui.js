@@ -334,6 +334,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (e.blocks) extra.push(`🛡️ Отбито топором: <b>${e.blocks}</b>`);
     if (e.absorbed) extra.push(`🛡️ Шкура поглотила: <b>${fmt(Math.round(e.absorbed))}</b> урона`);
     if (e.slowT > 0) extra.push(`❄️ Скован льдом · ещё <b>${fmt(e.slowT, 1)} с</b>`);
+    if (e.empowered) extra.push(`💎 Тёмная сила кристалла: <b>+${TD.CRYSTAL.bonus}</b> к выносливости, силе и скорости`);
     if (e.chill && !TD.isImmune(e)) extra.push(`🧊 Вечная стужа тотема: <b>−${Math.round(TD.FROST_AURA.slow * 100)}%</b> скорости`);
     if (e.revealed && e.perks.includes('stealth')) extra.push('👁️ Замечен дозорным колоколом — вышки его видят');
     if (e.burnT > 0) extra.push(`🔥 Горит · ещё <b>${fmt(e.burnT, 1)} с</b>`);

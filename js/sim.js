@@ -33,6 +33,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   // Геометрия спрайта врага: центр (с учётом покачивания при ходьбе), размеры.
   TD.enemyBox = function (e) {
+    if (e.crystal) return { cx: e.x, cy: e.y - TD.CRYSTAL.lift, W: TD.CRYSTAL.w, H: TD.CRYSTAL.h, cell: 1 };
     const sp = TD.SPRITES[e.sprite];
     const H = e.height * e.size;
     const s = H / sp.h;
@@ -42,6 +43,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
   // Пересекается ли круглый снаряд (px, py, r) с непрозрачными пикселями спрайта врага.
   TD.hitTest = function (e, px, py, r) {
     const b = TD.enemyBox(e);
+    // Кристалл — эллипс по его силуэту, расширенный на радиус снаряда.
+    if (e.crystal) { const dx = (px - b.cx) / (b.W / 2 + r), dy = (py - b.cy) / (b.H / 2 + r); return dx * dx + dy * dy <= 1; }
     if (Math.abs(px - b.cx) > b.W / 2 + r || Math.abs(py - b.cy) > b.H / 2 + r) return false;
     const m = masks(e.sprite)[e.view];
     let lx = (px - (b.cx - b.W / 2)) / b.cell;
@@ -101,18 +104,26 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
 
   // «Грибное безумие»: прибавка к макс. здоровью, скорости и силе; спадает без урона.
+  // Пересчёт параметров из базовых: ярость шамана (+5 скорость и сила, +250 здоровья) и тёмный кристалл
+  // (+4 к выносливости, силе и скорости). mode 'scale' — здоровье меняется пропорционально (кристалл),
+  // иначе прибавка добавляется к текущему здоровью, а при потере срезается до нового максимума (ярость).
+  function recalc(e, mode) {
+    const F = TD.FRENZY, k = e.empowered ? TD.CRYSTAL.bonus : 0, fr = !!e.frenzy;
+    e.stats.spd = Math.min(20, e.base.spd + (fr ? F.spd : 0) + k);
+    e.stats.str = Math.min(20, e.base.str + (fr ? F.str : 0) + k);
+    e.stats.sta = Math.min(20, e.base.sta + k);
+    const U = TD.UNITS[e.type];
+    const max = (U.boss ? TD.F.bossHp(e.stats.sta) : TD.F.enemyHp(e.stats.sta)) + (fr ? F.hp : 0);
+    if (mode === 'scale') e.hp = e.hp * max / e.hpMax;
+    else if (max > e.hpMax) e.hp += max - e.hpMax;
+    else e.hp = Math.min(e.hp, max);
+    e.hpMax = max;
+  }
+  TD.recalcUnit = recalc;
   function setFrenzy(e, on) {
-    const F = TD.FRENZY;
-    if (on) {
-      e.frenzy = true; e.calmT = 0;
-      e.stats.spd = Math.min(20, e.base.spd + F.spd);
-      e.stats.str = Math.min(20, e.base.str + F.str);
-      e.hpMax += F.hp; e.hp += F.hp;
-    } else {
-      e.frenzy = false;
-      e.stats.spd = e.base.spd; e.stats.str = e.base.str;
-      e.hpMax -= F.hp; e.hp = Math.min(e.hp, e.hpMax);
-    }
+    e.frenzy = !!on;
+    if (on) e.calmT = 0;
+    recalc(e);
   }
   TD.setFrenzy = setFrenzy;
   // Иммунитет к негативным эффектам (пока это негативные перки вроде «Трусливого»).
@@ -148,6 +159,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   // Центр спрайта врага через t секунд (по маршруту, при текущей скорости).
   TD.predictCenter = function (e, t) {
+    if (e.crystal) return { x: e.x, y: e.y - TD.CRYSTAL.lift };
     const p = TD.routeAt(e.route, e.dist + TD.enemySpeedPx(e) * t);
     return { x: p.x, y: p.y - centerLift(e) - e.bob };
   };
@@ -188,6 +200,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
     this.meteors = [];
     this.masonry = null;
     this.waveInfo = {};   // по номеру волны: { spawning, rewarded }
+    // Тёмные кристаллы у дорог (opts.crystals переопределяет настройку уровня).
+    const wantCrystals = opts.crystals !== undefined ? opts.crystals : !!TD.LEVELS[this.level].crystals && !TD.NO_CRYSTALS;
+    this.crystals = wantCrystals ? this.placeCrystals() : [];
     this.onShot = null;     // (projectile, outcome) — используется тестами
   };
 
@@ -196,7 +211,41 @@ var TD = globalThis.TD || (globalThis.TD = {});
   G.emit = function (ev) { this.events.push(ev); if (this.events.length > 400) this.events.shift(); };
 
   G.towerAt = function (tx, ty) { return this.towers.find(t => t.tx === tx && t.ty === ty); };
-  G.canBuild = function (tx, ty) { return this.map.buildable(tx, ty) && !this.towerAt(tx, ty); };
+  G.crystalAt = function (tx, ty) { return this.crystals.find(c => c.tx === tx && c.ty === ty); };
+  G.canBuild = function (tx, ty) { return this.map.buildable(tx, ty) && !this.towerAt(tx, ty) && !this.crystalAt(tx, ty); };
+  // Цели вышек и снарядов: враги и целые кристаллы.
+  G.targets = function () { return this.crystals.length ? this.enemies.concat(this.crystals.filter(c => c.alive)) : this.enemies; };
+
+  // Тёмные кристаллы: 5–7 штук на свободных клетках вплотную к дороге (не на местах силы),
+  // не ближе 3 клеток друг к другу. prog — насколько далеко по маршруту ближайшая точка дороги:
+  // по нему вышка выбирает цель наравне с врагами.
+  G.placeCrystals = function () {
+    const C = TD.CRYSTAL, map = this.map, rng = TD.makeRng((this.seed * 31 + 7) >>> 0);
+    const cand = [];
+    for (let y = 1; y < map.rows - 1; y++) for (let x = 1; x < map.cols - 1; x++) {
+      if (!map.buildable(x, y) || map.spotAt(x, y)) continue;
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => map.road.has(map.key(x + dx, y + dy)))) cand.push({ x, y });
+    }
+    for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cand[i], cand[j]] = [cand[j], cand[i]]; }
+    const n = rng.int(C.min, C.max), out = [];
+    for (const c of cand) {
+      if (out.length >= n) break;
+      if (out.some(o => Math.max(Math.abs(o.tx - c.x), Math.abs(o.ty - c.y)) < 3)) continue;
+      if (map.spots.some(s => Math.max(Math.abs(s.x - c.x), Math.abs(s.y - c.y)) < 2)) continue;
+      const x = (c.x + 0.5) * T(), y = (c.y + 0.5) * T() + 10;
+      let prog = 0, best = 1e9;
+      for (const p of map.paths) for (let d = 0; d < p.route.length; d += 8) {
+        const q = TD.routeAt(p.route, d), dd = Math.hypot(q.x - x, q.y - y);
+        if (dd < best) { best = dd; prog = d / p.route.length; }
+      }
+      out.push({
+        id: 'crystal' + out.length, crystal: true, tx: c.x, ty: c.y, x, y, prog,
+        hp: C.hp, hpMax: C.hp, alive: true, perks: [], stats: {}, hitsTaken: 0, dmgTaken: 0, hitFlash: 0, size: 1, bob: 0,
+        name: 'Тёмный кристалл',
+      });
+    }
+    return out;
+  };
 
   G.addTower = function (def, tx, ty, free) {
     if (!this.canBuild(tx, ty)) return null;
@@ -363,6 +412,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (!type) type = 'phys';
     const fire = type === 'fire';
     if (!e.alive) return 0;
+    if (e.crystal) return this.damageCrystal(e, dmg, tower, fire);
     // «Грибное безумие» режет только физический урон; огонь и магия проходят полностью.
     if (e.frenzy && type === 'phys') dmg *= 1 - TD.FRENZY.resist;
     // «Тяжёлый топор»: шанс отбить физический урон целиком.
@@ -414,6 +464,22 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
 
   // «Целебные споры»: лечение себя и союзников рядом.
+  // Кристалл получает любой урон полностью; разрушенный перестаёт усиливать врагов.
+  G.damageCrystal = function (c, dmg, tower, fire) {
+    dmg = Math.round(dmg * 100) / 100;
+    const dealt = Math.min(c.hp, dmg);
+    c.hp -= dmg; c.hitsTaken++; c.dmgTaken += dealt; c.hitFlash = 0.12;
+    if (tower) tower.dmgDealt += dealt;
+    this.emit({ type: 'dmg', x: c.x, y: c.y - 46, v: dmg, fire, eid: c.id });
+    if (c.hp <= 0) {
+      c.hp = 0; c.alive = false;
+      if (tower) tower.kills++;
+      this.stats.crystals = (this.stats.crystals || 0) + 1;
+      this.emit({ type: 'crystalBreak', c, x: c.x, y: c.y - TD.CRYSTAL.lift });
+    }
+    return dealt;
+  };
+
   G.spores = function (src) {
     const R = TD.SPORES.radius * T();
     const healed = [];
@@ -547,10 +613,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (m.t > 0) continue;
       const sp = TD.SPELL.meteor, R = sp.radius * T();
       // Взрыв задевает врага, если круг взрыва касается непрозрачных пикселей его спрайта.
-      for (const e of this.enemies) {
+      for (const e of this.targets()) {
         if (!e.alive || !TD.hitTest(e, m.x, m.y, R)) continue;
         this.damage(e, sp.dmg, null, true);
-        if (e.alive) { e.burnT = sp.burn.dur; e.burnAcc = 0; }
+        if (e.alive && !e.crystal) { e.burnT = sp.burn.dur; e.burnAcc = 0; }
       }
       this.emit({ type: 'meteor', x: m.x, y: m.y, r: R });
     }
@@ -573,7 +639,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const def = p.tower.def;
     const R = def.splash.radius * T();
     if (direct) this.damage(direct, p.dmg, p.tower, def.dmgType);
-    for (const e of this.enemies) {
+    for (const e of this.targets()) {
       if (!e.alive || e === direct) continue;
       const b = TD.enemyBox(e);
       if (Math.hypot(b.cx - x, b.cy - y) <= R + 8) this.damage(e, p.dmg * def.splash.mult, p.tower, def.dmgType);
@@ -594,7 +660,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const steps = Math.max(1, Math.ceil(move / Math.max(1, p.r * 0.7)));
     const sdt = dt / steps;
     // Самонаводящийся заряд: каждый шаг поворачивает к текущему центру цели, пока та жива.
-    const target = p.homing ? this.enemies.find(e => e.id === p.targetId && e.alive) : null;
+    const target = p.homing ? this.targets().find(e => e.id === p.targetId && e.alive) : null;
     for (let s = 0; s < steps && !p.done; s++) {
       if (target) {
         const b = TD.enemyBox(target), dx = b.cx - p.x, dy = b.cy - p.y, L = Math.hypot(dx, dy) || 1;
@@ -604,7 +670,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       p.x += p.vx * sdt; p.y += p.vy * sdt;
       p.traveled += sp * sdt;
       if (p.grow) p.r = p.r0 * (1 + (p.grow - 1) * Math.min(1, p.traveled / p.maxTravel));
-      for (const e of this.enemies) {
+      for (const e of this.targets()) {
         if (!e.alive) continue;
         if (p.hitSet && p.hitSet.has(e.id)) continue;
         if (!TD.hitTest(e, p.x, p.y, p.r)) continue;
@@ -649,11 +715,11 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const R = t.act.range * T();
     // Цель — враг, прошедший дальше всех по маршруту, в радиусе действия. «Скрытность» — вышка его не видит.
     let best = null, bestProg = -1;
-    for (const e of this.enemies) {
+    for (const e of this.targets()) {
       if (!e.alive || !TD.visible(e)) continue;
       const b = TD.enemyBox(e);
       if (Math.hypot(b.cx - t.cx, b.cy - t.cy) > R) continue;
-      const prog = e.dist / e.route.length;
+      const prog = e.crystal ? e.prog : e.dist / e.route.length;
       if (prog > bestProg) { bestProg = prog; best = e; }
     }
     t.target = best;
@@ -695,6 +761,22 @@ var TD = globalThis.TD || (globalThis.TD = {});
     }
   };
 
+  // «Тёмная сила»: враг в радиусе целого кристалла получает +4 к выносливости, силе и скорости.
+  // Несколько кристаллов не складываются; вышел из радиуса — бонус пропадает (здоровье — пропорционально).
+  G.updateCrystals = function () {
+    if (!this.crystals.length) return;
+    const R = TD.F.range(TD.CRYSTAL.range) * T();
+    for (const c of this.crystals) c.hitFlash = Math.max(0, c.hitFlash - TD.DT);
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const on = this.crystals.some(c => c.alive && Math.hypot(c.x - e.x, c.y - e.y) <= R);
+      if (on === !!e.empowered) continue;
+      e.empowered = on;
+      recalc(e, 'scale');
+      if (on) this.emit({ type: 'empower', e });
+    }
+  };
+
   G.update = function (dt) {
     if (this.phase === 'won' || this.phase === 'lost') return;
     this.time += dt;
@@ -719,6 +801,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const R = TD.WARCRY.radius * T();
     for (const e of this.enemies) e.brave = madmen.some(m => m !== e && Math.hypot(m.x - e.x, m.y - e.y) <= R);
     this.updateAuras();
+    this.updateCrystals();
     // Движение врагов
     for (const e of this.enemies) {
       if (!e.alive) continue;
