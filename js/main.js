@@ -148,7 +148,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     const spellKey = { q: 'meteor', й: 'meteor', w: 'frost', ц: 'frost', e: 'chain', у: 'chain', r: 'masonry', к: 'masonry' }[ev.key.toLowerCase()];
     // На карте похода игровые клавиши не работают; Esc закрывает карточку врага или возвращает к бою.
     if (TD.World.isOpen()) {
-      if (ev.key === 'Escape') { if (UI.enemyOpen()) UI.closeEnemy(); else if (!$('wmBack').hidden) TD.World.close(); }
+      if (ev.key === 'Escape') { if (UI.enemyOpen()) UI.closeEnemy(); else if (TD.World.shopOpen()) TD.World.closeShop(); else if (!$('wmBack').hidden) TD.World.close(); }
       if (ev.key === 'Tab' || ev.key === ' ') ev.preventDefault();
       return;
     }

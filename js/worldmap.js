@@ -486,15 +486,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
     L.waves.forEach(w => { for (const ch of w.units) { const ty = TD.WAVE_UNIT[ch]; if (ty && !types.includes(ty)) types.push(ty); } });
     return types;
   }
-  WM.tab = 'loc';
   WM.renderPanel = function () {
     const box = $('wmLoc');
     const n = nodes.find(q => (q.future ? 'f' + q.i : q.id) === WM.sel) || nodes[0];
     const P = TD.Progress;
     $('wmStars').textContent = `${P.total()} / ${P.maxTotal()}`;
     $('wmFree').textContent = P.free();
-    document.querySelectorAll('.wm-tab').forEach(b => b.classList.toggle('on', b.dataset.tab === WM.tab));
-    if (WM.tab === 'shop') return renderShop(box);
     if (n.future) {
       box.innerHTML = `<div class="wl-kicker">За туманом</div><h3 class="wl-name">Неизведанные земли</h3>
         <p class="wl-desc">Дальше на север лежат горы, о которых гоблины рассказывают шёпотом. Эти земли откроются в следующих походах.</p>`;
@@ -532,74 +529,99 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if ($('wlGo')) $('wlGo').onclick = () => { TD.Sound.play('click'); WM.close(); TD.newGame(undefined, n.id); };
   };
 
-  // ---------------- Сокровищница: открытие вышек и улучшения ----------------
+  // ---------------- Сокровищница: полноэкранное окно улучшений ----------------
   const ROMAN = ['I', 'II', 'III'];
-  function towerIcon(def) {
+  function towerIcon(def, size) {
+    size = size || 52;
     const c = document.createElement('canvas');
-    c.width = 104; c.height = 104; c.className = 'ws-ico';
+    c.width = size * 2; c.height = size * 2; c.className = 'tr-ico';
+    c.style.width = c.style.height = size + 'px';
     const x = c.getContext('2d');
-    x.scale(2, 2);
+    const k = size / 52;
+    x.scale(2 * k, 2 * k);
     const tall = def.id === 'bell' || def.id === 'spire';
     x.translate(26, tall ? 37 : 30);
     x.scale(tall ? 0.72 : 0.9, tall ? 0.72 : 0.9);
     TD.drawTower(x, def, { angle: -Math.PI / 5 });
     return c;
   }
-  // Три ступени: купленные отмечены, следующая — с кнопкой покупки, дальние приглушены.
-  function rankList(id, can) {
+  // Дорожка из трёх ступеней: купленные — золотые, следующая — с кнопкой, дальние — приглушены.
+  function track(id, can) {
     const P = TD.Progress, r = P.rank(id), free = WM.midBattle ? 0 : P.free();
-    return TD.UPGRADES[id].map((u, k) => {
+    return `<div class="tr-track">${TD.UPGRADES[id].map((u, k) => {
       const cost = TD.UPGRADE_COST[k];
       const state = k < r ? 'done' : k === r ? 'next' : 'later';
-      const btn = state === 'done' ? '<span class="ws-ok">✓</span>'
-        : state === 'next' ? (can ? `<button class="ws-buy" data-up="${id}" ${free < cost ? 'disabled' : ''}>★ ${cost}</button>` : `<span class="ws-cost">★ ${cost}</span>`)
-        : `<span class="ws-cost">★ ${cost}</span>`;
-      return `<div class="ws-rank ${state}"><span class="ws-rn">${ROMAN[k]}</span><div><b>${esc(u.name)}</b><small>${esc(u.desc)}</small></div>${btn}</div>`;
-    }).join('');
+      const btn = state === 'done' ? '<span class="tr-ok">✓ куплено</span>'
+        : state === 'next' && can ? `<button class="tr-buy" data-up="${id}" ${free < cost ? 'disabled' : ''}>★ ${cost}</button>`
+        : `<span class="tr-cost">★ ${cost}</span>`;
+      return `<div class="tr-step ${state}">
+        <span class="tr-node">${ROMAN[k]}</span>
+        <div class="tr-txt"><b>${esc(u.name)}</b><small>${esc(u.desc)}</small></div>${btn}</div>`;
+    }).join('')}</div>`;
   }
-  function renderShop(box) {
+  const pips = id => `<span class="tr-pips">${[0, 1, 2].map(k => `<i class="${k < TD.Progress.rank(id) ? 'on' : ''}"></i>`).join('')}</span>`;
+
+  WM.openShop = function () {
+    $('treasury').hidden = false;
+    WM.renderShop();
+  };
+  WM.closeShop = function () { $('treasury').hidden = true; WM.renderPanel(); };
+  WM.shopOpen = () => !$('treasury').hidden;
+  WM.renderShop = function () {
     const P = TD.Progress, free = WM.midBattle ? 0 : P.free();
     const towers = TD.TOWERS, spells = TD.SPELLS.filter(s => TD.SPELL_UPGRADE_KEY[s.id]);
-    box.innerHTML = `
-      ${WM.midBattle ? '<div class="ws-mid">⚔ Идёт бой — покупать можно только между уровнями.</div>' : ''}
-      <div class="ws-top"><div><b>★ ${P.free()}</b> свободно<small>всего заработано ${P.total()}, потрачено ${P.spent()}</small></div>
-        <button class="ws-refund" id="wsRefund" ${P.spent() && !WM.midBattle ? '' : 'disabled'} title="Сбросить открытия и улучшения и вернуть все звёзды">↺ Вернуть звёзды</button></div>
-      <div class="wl-h">Новые вышки</div>
-      <div class="ws-unlocks">${TD.LOCKED_TOWERS.map(id => {
-        const d = towers.find(t => t.id === id), open = P.unlocked[id];
-        return `<div class="ws-unlock ${open ? 'open' : ''}" data-icon="${id}">
-          <div class="ws-un-name">${esc(d.name)}</div><small>${esc(d.title)}</small>
-          ${open ? '<span class="ws-ok">✓ Открыта</span>' : `<button class="ws-buy" data-unlock="${id}" ${free < TD.UNLOCK_COST ? 'disabled' : ''}>Открыть · ★ ${TD.UNLOCK_COST}</button>`}
-        </div>`;
-      }).join('')}</div>
-      <div class="wl-h">Улучшения вышек</div>
-      ${towers.map(d => {
-        const can = P.canUpgrade(d.id);
-        return `<div class="ws-item ${can ? '' : 'locked'}" style="--tc:${d.color}">
-          <div class="ws-head" data-icon="${d.id}"><div><b>${esc(d.name)}</b><span class="ws-pips">${[0, 1, 2].map(k => `<i class="${k < P.rank(d.id) ? 'on' : ''}"></i>`).join('')}</span>
-          ${can ? '' : '<small class="ws-lockmsg">🔒 Сначала откройте вышку</small>'}</div></div>
-          ${rankList(d.id, can)}</div>`;
-      }).join('')}
-      <div class="wl-h">Улучшения заклинаний</div>
-      ${spells.map(s => {
-        const key = TD.SPELL_UPGRADE_KEY[s.id];
-        return `<div class="ws-item" style="--tc:#7ab8ff">
-          <div class="ws-head"><span class="ws-sp">${s.icon}</span><div><b>${esc(s.name)}</b><span class="ws-pips">${[0, 1, 2].map(k => `<i class="${k < P.rank(key) ? 'on' : ''}"></i>`).join('')}</span></div></div>
-          ${rankList(key, true)}</div>`;
-      }).join('')}
-      <p class="ws-note">Улучшения действуют на всех уровнях с начала следующего боя. Ремонт замка не улучшается.</p>`;
-    box.querySelectorAll('[data-icon]').forEach(el => el.prepend(towerIcon(towers.find(t => t.id === el.dataset.icon))));
-    box.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => {
-      if (P.upgrade(b.dataset.up)) { TD.Sound.play('build'); WM.renderPanel(); }
+    $('trFree').textContent = P.free();
+    $('trInfo').textContent = `заработано ${P.total()} из ${P.maxTotal()} · потрачено ${P.spent()}`;
+    $('trRefund').disabled = !P.spent() || WM.midBattle;
+    $('trMid').hidden = !WM.midBattle;
+    const body = $('trBody');
+    body.innerHTML = `
+      <section class="tr-sec">
+        <h3 class="tr-h"><span>Новые вышки</span><small>Открыть вышку — ★ ${TD.UNLOCK_COST}. До открытия она закрыта в магазине боя и её нельзя улучшать.</small></h3>
+        <div class="tr-showcase">${TD.LOCKED_TOWERS.map(id => {
+          const d = towers.find(t => t.id === id), open = P.unlocked[id];
+          return `<div class="tr-hero ${open ? 'open' : ''}" style="--tc:${d.color}">
+            <div class="tr-pedestal" data-icon="${id}" data-size="120"></div>
+            <div class="tr-hero-info">
+              <div class="tr-kicker">${esc(d.title)}</div>
+              <h4>${esc(d.name)}</h4>
+              ${[d.perk, d.perk2].filter(Boolean).map(pk => `<p><span>${pk.icon}</span><b>${esc(pk.name)}.</b> ${esc(pk.desc)}</p>`).join('')}
+              ${open ? '<div class="tr-opened">✓ Открыта</div>' : `<button class="tr-buy big" data-unlock="${id}" ${free < TD.UNLOCK_COST ? 'disabled' : ''}>🔓 Открыть · ★ ${TD.UNLOCK_COST}</button>`}
+            </div>
+          </div>`;
+        }).join('')}</div>
+      </section>
+      <section class="tr-sec">
+        <h3 class="tr-h"><span>Улучшения вышек</span><small>Ступень I — ★ 1, II — ★ 2, III — ★ 3. Действуют с начала следующего боя.</small></h3>
+        <div class="tr-grid">${towers.map(d => {
+          const can = P.canUpgrade(d.id);
+          return `<div class="tr-card ${can ? '' : 'locked'}" style="--tc:${d.color}">
+            <div class="tr-card-head"><div class="tr-icobox" data-icon="${d.id}" data-size="64"></div>
+              <div><h4>${esc(d.name)}</h4><div class="tr-sub">${esc(d.title)} ${pips(d.id)}</div></div></div>
+            ${track(d.id, can)}
+            ${can ? '' : `<div class="tr-lock"><span>🔒</span>Сначала откройте вышку</div>`}
+          </div>`;
+        }).join('')}</div>
+      </section>
+      <section class="tr-sec">
+        <h3 class="tr-h"><span>Улучшения заклинаний</span><small>Ремонт замка не улучшается.</small></h3>
+        <div class="tr-grid">${spells.map(s => {
+          const key = TD.SPELL_UPGRADE_KEY[s.id];
+          return `<div class="tr-card tr-spell" style="--tc:#8fc2ff">
+            <div class="tr-card-head"><div class="tr-medal">${s.icon}</div>
+              <div><h4>${esc(s.name)}</h4><div class="tr-sub">✦ ${s.cost} маны${s.cd ? ` · перезарядка ${s.cd} с` : ''} ${pips(key)}</div></div></div>
+            ${track(key, true)}
+          </div>`;
+        }).join('')}</div>
+      </section>`;
+    body.querySelectorAll('[data-icon]').forEach(el => el.prepend(towerIcon(towers.find(t => t.id === el.dataset.icon), +el.dataset.size)));
+    body.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => {
+      if (P.upgrade(b.dataset.up)) { TD.Sound.play('build'); WM.renderShop(); }
     }));
-    box.querySelectorAll('[data-unlock]').forEach(b => b.addEventListener('click', () => {
-      if (P.unlock(b.dataset.unlock)) { TD.Sound.play('build'); WM.renderPanel(); }
+    body.querySelectorAll('[data-unlock]').forEach(b => b.addEventListener('click', () => {
+      if (P.unlock(b.dataset.unlock)) { TD.Sound.play('build'); WM.renderShop(); }
     }));
-    $('wsRefund').onclick = () => {
-      if (!confirm('Сбросить все открытия и улучшения и вернуть звёзды?')) return;
-      P.refund(); TD.Sound.play('sell'); WM.renderPanel();
-    };
-  }
+  };
 
   WM.isOpen = () => !$('world').hidden;
   // opts.select — какую метку выделить; opts.canReturn — можно вернуться к текущему бою.
@@ -617,6 +639,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   };
   WM.close = function () {
     $('world').hidden = true;
+    $('treasury').hidden = true;
     cancelAnimationFrame(raf);
   };
 
@@ -630,10 +653,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
       if (!n) return;
       TD.Sound.play('click');
       WM.sel = n.future ? 'f' + n.i : n.id;
-      WM.tab = 'loc';
       WM.renderPanel();
     });
     $('wmBack').onclick = () => { TD.Sound.play('click'); WM.close(); };
-    document.querySelectorAll('.wm-tab').forEach(b => b.addEventListener('click', () => { TD.Sound.play('click'); WM.tab = b.dataset.tab; WM.renderPanel(); }));
+    $('wmShopBtn').onclick = () => { TD.Sound.play('click'); WM.openShop(); };
+    $('trClose').onclick = () => { TD.Sound.play('click'); WM.closeShop(); };
+    $('trRefund').onclick = () => {
+      if (!confirm('Сбросить все открытия и улучшения и вернуть звёзды?')) return;
+      TD.Progress.refund(); TD.Sound.play('sell'); WM.renderShop();
+    };
   };
 })();

@@ -109,13 +109,22 @@
           <div class="wm-stars" title="Звёзды за пройденные уровни (лучшие результаты): всего / максимум">★ <b id="wmStars">0</b></div>
         </div>
         <button class="wm-back" id="wmBack" hidden>⟵ Вернуться к битве</button>
-        <div class="wm-tabs">
-          <button class="wm-tab on" data-tab="loc">🗺 Локация</button>
-          <button class="wm-tab" data-tab="shop">★ Сокровищница <b id="wmFree">0</b></button>
-        </div>
+        <button class="wm-shop-btn" id="wmShopBtn"><span class="wsb-ico">⚜</span><span><b>Сокровищница</b><small>улучшения вышек и заклинаний</small></span><em>★ <i id="wmFree">0</i></em></button>
         <div class="wm-loc" id="wmLoc"></div>
         <div class="wm-rules"><span>★★★</span>замок не получил урона<span>★★</span>прочность замка выше 10<span>★</span>победа</div>
       </aside>
+    </div>
+
+    <!-- ============ СОКРОВИЩНИЦА ============ -->
+    <div class="treasury" id="treasury" hidden>
+      <header class="tr-top">
+        <button class="tr-close" id="trClose">⟵ К карте</button>
+        <div class="tr-title"><div class="tr-kicker">Карта похода</div><h2>Сокровищница</h2></div>
+        <div class="tr-wallet"><div class="tr-stars">★ <b id="trFree">0</b></div><small id="trInfo"></small></div>
+        <button class="tr-refund" id="trRefund" title="Сбросить открытия и улучшения и вернуть все звёзды">↺ Вернуть звёзды</button>
+      </header>
+      <div class="tr-mid" id="trMid" hidden>⚔ Идёт бой — покупать можно только между уровнями.</div>
+      <div class="tr-body" id="trBody"></div>
     </div>
 
     <!-- ============ КАРТА ВРАГА ============ -->
