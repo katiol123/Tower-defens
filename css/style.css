@@ -375,3 +375,53 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   .ecard { grid-template-columns: 1fr; }
   .ec-left { border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* ================= MANA ================= */
+.mana-ico { color: #8fc8ff; font-size: 18px; text-shadow: 0 0 10px rgba(110, 170, 255, .8); }
+.mana-bar { position: relative; width: 120px; height: 18px; border-radius: 9px; background: #0c1a33; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.6); }
+.mana-bar i { position: absolute; inset: 0; width: 0; background: linear-gradient(180deg, #7cc0ff, #2f62c9); transition: width .2s; }
+.mana-bar b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; text-shadow: 0 1px 2px #000; }
+
+/* ================= NEXT WAVE ================= */
+.next-wave {
+  position: absolute; left: 14px; top: 12px; z-index: 3; display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px 8px 8px; border-radius: 14px; border: 1px solid var(--line-strong);
+  background: linear-gradient(180deg, rgba(40, 31, 22, .95), rgba(22, 17, 12, .95));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .5); animation: popIn .25s ease;
+}
+.nw-ring { position: relative; width: 44px; height: 44px; }
+.nw-ring svg { width: 44px; height: 44px; transform: rotate(-90deg); }
+.nw-bg { fill: none; stroke: rgba(255,255,255,.1); stroke-width: 4; }
+.nw-fg { fill: none; stroke: var(--gold); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 119.4; transition: stroke-dashoffset .12s linear; }
+.nw-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; color: var(--gold-2); }
+.nw-title { font-family: var(--font-title); color: var(--ink); font-size: 14px; margin-bottom: 4px; }
+.nw-btn { border: 0; border-radius: 9px; height: 28px; padding: 0 10px; font-weight: 700; font-size: 12.5px;
+  background: linear-gradient(180deg, #d9463a, #8e1f18); box-shadow: 0 0 0 1px rgba(255,170,150,.35) inset; display: inline-flex; align-items: center; gap: 5px; }
+.nw-btn:hover { filter: brightness(1.15); }
+.nw-btn span { color: var(--gold-2); }
+.nw-btn .coin { width: 12px; height: 12px; }
+
+/* ================= SPELLS ================= */
+.spellbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 3; display: flex; gap: 8px;
+  padding: 7px; border-radius: 16px; border: 1px solid rgba(124, 180, 255, .35);
+  background: linear-gradient(180deg, rgba(18, 24, 40, .92), rgba(10, 13, 24, .94)); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.spell { position: relative; width: 62px; height: 62px; border-radius: 12px; border: 1px solid rgba(140, 190, 255, .3);
+  background: radial-gradient(circle at 50% 35%, rgba(90, 140, 230, .35), rgba(15, 20, 40, .9)); overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform .12s, border-color .12s, filter .12s; }
+.spell:hover { transform: translateY(-2px); border-color: rgba(160, 210, 255, .8); }
+.spell .sp-ico { font-size: 26px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+.spell .sp-cost { position: absolute; right: 4px; bottom: 2px; font-size: 11px; font-weight: 700; color: #9fd0ff; text-shadow: 0 1px 2px #000; }
+.spell .sp-key { position: absolute; left: 5px; top: 3px; font-size: 10px; color: rgba(255,255,255,.55); }
+.spell .sp-cd { position: absolute; inset: 0; background: conic-gradient(rgba(5, 8, 16, .78) calc(var(--cd, 0) * 1turn), transparent 0); pointer-events: none; }
+.spell .sp-cdt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px #000; pointer-events: none; }
+.spell.nomana { filter: grayscale(.6) brightness(.7); }
+.spell.nomana .sp-cost { color: #ff8a7a; }
+.spell.used { filter: grayscale(1) brightness(.45); }
+.spell.ready { box-shadow: 0 0 14px -4px rgba(120, 190, 255, .9); }
+.spell.active { border-color: #bfe0ff; box-shadow: 0 0 0 2px #7cc0ff, 0 0 20px rgba(124, 192, 255, .7); }
+.spell-tip { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 4; width: 300px; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid rgba(140, 190, 255, .45); background: linear-gradient(180deg, rgba(20, 28, 48, .97), rgba(12, 16, 30, .97));
+  box-shadow: 0 12px 30px rgba(0,0,0,.55); pointer-events: none; font-size: 12.5px; color: var(--muted); }
+.spell-tip h4 { margin: 0 0 4px; font-family: var(--font-title); font-weight: 400; color: #cfe6ff; font-size: 16px; }
+.spell-tip .st-meta { color: #9fd0ff; margin-bottom: 5px; font-size: 12px; }
+.field.casting #cv { cursor: crosshair; }

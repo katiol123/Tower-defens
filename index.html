@@ -27,6 +27,10 @@
           <div class="castle-bar"><i id="castleFill"></i><b id="castleVal">100</b></div>
         </div>
         <div class="stat gold-stat" title="Золото"><span class="coin"></span><b id="goldVal">0</b></div>
+        <div class="stat mana-stat" title="Мана: +1 в секунду и +0,5 за каждого убитого врага">
+          <span class="mana-ico">✦</span>
+          <div class="mana-bar"><i id="manaFill"></i><b id="manaVal">0</b></div>
+        </div>
         <div class="stat wave-stat" title="Волна"><span class="stat-ico">⚑</span><b id="waveVal">0 / 10</b></div>
       </div>
 
@@ -64,6 +68,19 @@
         </div>
         <div class="tower-pop" id="towerPop" hidden></div>
         <div class="seed" id="seedLbl"></div>
+
+        <!-- ============ СЛЕДУЮЩАЯ ВОЛНА ============ -->
+        <div class="next-wave" id="nextWave" hidden>
+          <div class="nw-ring"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" class="nw-bg"/><circle cx="22" cy="22" r="19" class="nw-fg" id="nwArc"/></svg><b id="nwSec">10</b></div>
+          <div class="nw-info">
+            <div class="nw-title" id="nwTitle">Волна 2</div>
+            <button class="nw-btn" id="nwBtn">Начать сейчас <span id="nwBonus">+150</span> <span class="coin"></span></button>
+          </div>
+        </div>
+
+        <!-- ============ ЗАКЛИНАНИЯ ============ -->
+        <div class="spellbar" id="spellBar"></div>
+        <div class="spell-tip" id="spellTip" hidden></div>
 
         <!-- ============ МАГАЗИН ============ -->
         <div class="shop" id="shop">

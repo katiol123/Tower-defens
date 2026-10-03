@@ -38,6 +38,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     UI.game = game;
     UI.selectPlacing(null);
     UI.selectTower(null);
+    UI.selectSpell(null, true);
     UI.closeEnemy();
     UI.clearRoster();
     UI.resetHud();
@@ -60,14 +61,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
   cv.addEventListener('mousemove', ev => {
     const w = toWorld(ev);
     UI.hover = w.inside ? w : null;
-    if (!UI.placing) {
+    if (!UI.placing && !UI.casting) {
       const e = enemyAt(w);
       const t = game.towerAt(w.tx, w.ty);
       cv.style.cursor = e || t ? 'pointer' : 'default';
     }
   });
   cv.addEventListener('mouseleave', () => { UI.hover = null; });
-  cv.addEventListener('contextmenu', ev => { ev.preventDefault(); UI.selectPlacing(null); UI.selectTower(null); });
+  cv.addEventListener('contextmenu', ev => { ev.preventDefault(); UI.selectPlacing(null); UI.selectTower(null); UI.selectSpell(null, true); });
 
   function enemyAt(w) {
     let best = null;
@@ -78,6 +79,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
   cv.addEventListener('click', ev => {
     const w = toWorld(ev);
     if (!w.inside) return;
+    if (UI.casting) {
+      const id = UI.casting;
+      if (game.castSpell(id, w.x, w.y)) UI.selectSpell(null, true);
+      else { TD.Sound.play('deny'); if (id === 'chain') UI.banner('Нет цели', 'Кликните по врагу или рядом с ним', 1200); }
+      return;
+    }
     if (UI.placing) {
       const def = UI.placing;
       if (game.gold < def.price) { TD.Sound.play('deny'); UI.banner('Не хватает золота', `${def.name} стоит ${def.price}`, 1400); return; }
@@ -100,6 +107,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   soundBtn.addEventListener('click', () => { TD.Sound.toggle(); syncSound(); });
   syncSound();
   $('waveBtn').addEventListener('click', () => { game.startWave(); });
+  $('nwBtn').addEventListener('click', () => { game.startWave(); });
   $('newMapBtn').addEventListener('click', () => TD.newGame());
   $('enemyModal').addEventListener('click', ev => { if (ev.target.hasAttribute('data-close')) UI.closeEnemy(); });
   document.querySelectorAll('#speed button').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
@@ -112,9 +120,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
   }
 
   window.addEventListener('keydown', ev => {
+    const spellKey = { q: 'meteor', й: 'meteor', w: 'frost', ц: 'frost', e: 'chain', у: 'chain', r: 'masonry', к: 'masonry' }[ev.key.toLowerCase()];
     if (ev.key === 'Escape') {
       if (UI.enemyOpen()) UI.closeEnemy();
-      else { UI.selectPlacing(null); UI.selectTower(null); }
+      else { UI.selectPlacing(null); UI.selectTower(null); UI.selectSpell(null, true); }
+    } else if (spellKey && !UI.enemyOpen()) {
+      UI.selectSpell(spellKey);
     } else if (ev.key === ' ') {
       ev.preventDefault();
       setSpeed(speed === 0 ? prevSpeed : 0);
@@ -141,6 +152,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       while (acc >= TD.DT && steps < 12) { game.update(TD.DT); acc -= TD.DT; steps++; }
       if (steps >= 12) acc = 0;
       TD.Sound.handleEvents(game, sp);
+      UI.handleEvents(game);
       TD.consumeEvents(game, UI);
       UI.castleHitT = Math.max(0, UI.castleHitT - dt);
       TD.renderFrame(ctx, game, view, UI, sp ? dt * sp : 0);
@@ -155,16 +167,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
         if (UI.selectedTower && !game.towers.includes(UI.selectedTower)) UI.selectTower(null);
       }
       if (game.phase !== game._shownPhase) {
-        const prev = game._shownPhase;
         game._shownPhase = game.phase;
-        if (game.phase === 'wave') {
-          const w = TD.waveDef(game.wave);
-          const n = ch => (w.units.match(new RegExp(ch, 'g')) || []).length;
-          if (w.boss) UI.banner('Босс: Тролль-мусорщик', 'На нём живут гоблины. Не дайте ему дойти до замка!', 3000);
-          else UI.banner(`Волна ${game.wave}`, [`${n('G')} гоблинов`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
-        }
-        else if (game.phase === 'build' && prev === 'wave') UI.banner(`Волна ${game.wave} отбита!`, `+${TD.waveDef(game.wave).reward} золота · следующая через 20 с`, 2200);
-        else if (game.phase === 'won') setTimeout(() => UI.showEnd(game, true), 900);
+        if (game.phase === 'won') setTimeout(() => UI.showEnd(game, true), 900);
         else if (game.phase === 'lost') setTimeout(() => UI.showEnd(game, false), 900);
       }
     }
@@ -173,6 +177,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   window.addEventListener('resize', resize);
   UI.buildShop();
+  UI.buildSpells();
   TD.loadSprites().then(() => {
     resize();
     const q = new URLSearchParams(location.search).get('seed');

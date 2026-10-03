@@ -58,6 +58,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
   UI.selectPlacing = function (def) {
     UI.placing = def;
+    if (def && UI.casting) UI.selectSpell(null, true);
     if (def) UI.selectTower(null);
     document.querySelectorAll('.tcard').forEach(c => c.classList.toggle('active', !!def && c.dataset.id === def.id));
     $('field').classList.toggle('placing', !!def);
@@ -89,12 +90,92 @@ var TD = globalThis.TD || (globalThis.TD = {});
     }
     $('waveVal').textContent = `${game.wave} / ${TD.WAVES}`;
     const btn = $('waveBtn');
-    const busy = game.phase === 'wave';
-    btn.disabled = busy || game.phase === 'won' || game.phase === 'lost';
+    const can = game.canStartWave();
+    btn.disabled = !can;
     btn.classList.toggle('pulse', game.phase === 'build');
-    $('waveHint').textContent = busy ? `Волна ${game.wave} идёт…`
-      : game.phase === 'build' ? (game.countdown > 0 ? `Волна ${game.wave + 1} через ${Math.ceil(game.countdown)} с` : `Волна ${game.wave + 1}`)
-      : '—';
+    const cd = Math.ceil(game.countdown - 1e-9);
+    $('waveHint').textContent = game.phase === 'build' ? `Волна 1`
+      : game.countdown > 0 ? `Волна ${game.wave + 1} через ${cd} с · +${game.earlyBonus()} зол.`
+      : game.spawnQueue.length ? `Волна ${game.wave} выходит…`
+      : game.phase === 'wave' ? 'Последняя волна' : '—';
+    // Мана
+    $('manaFill').style.width = (game.mana / TD.MANA.max * 100) + '%';
+    $('manaVal').textContent = `${Math.floor(game.mana)} / ${TD.MANA.max}`;
+    // Виджет отсчёта до следующей волны
+    const nw = $('nextWave');
+    if (game.countdown > 0 && game.phase === 'wave') {
+      nw.hidden = false;
+      $('nwSec').textContent = cd;
+      $('nwArc').style.strokeDashoffset = 119.4 * (1 - game.countdown / TD.NEXT_WAVE_DELAY);
+      const nextDef = TD.waveDef(game.wave + 1);
+      $('nwTitle').textContent = nextDef.boss ? 'Босс через' : `Волна ${game.wave + 1} через`;
+      $('nwBonus').textContent = '+' + game.earlyBonus();
+    } else nw.hidden = true;
+    UI.updateSpells(game);
+  };
+
+  // ---------------- Заклинания ----------------
+  UI.casting = null;
+  UI.buildSpells = function () {
+    const bar = $('spellBar');
+    bar.innerHTML = '';
+    TD.SPELLS.forEach(sp => {
+      const b = document.createElement('button');
+      b.className = 'spell';
+      b.dataset.id = sp.id;
+      b.innerHTML = `<span class="sp-key">${sp.key}</span><span class="sp-ico">${sp.icon}</span><span class="sp-cost">${sp.cost}</span><span class="sp-cd"></span><span class="sp-cdt"></span>`;
+      b.addEventListener('click', () => UI.selectSpell(sp.id));
+      b.addEventListener('mouseenter', () => {
+        const tip = $('spellTip');
+        tip.innerHTML = `<h4>${sp.icon} ${esc(sp.name)}</h4><div class="st-meta">✦ ${sp.cost} маны${sp.cd ? ` · перезарядка ${sp.cd} с` : ''}${sp.once ? ' · один раз за уровень' : ''} · клавиша ${sp.key}</div>${esc(sp.desc)}`;
+        tip.hidden = false;
+      });
+      b.addEventListener('mouseleave', () => { $('spellTip').hidden = true; });
+      bar.appendChild(b);
+    });
+  };
+  UI.updateSpells = function (game) {
+    document.querySelectorAll('.spell').forEach(b => {
+      const sp = TD.SPELL[b.dataset.id];
+      const cd = game.spellCd[sp.id] || 0;
+      const used = sp.once && game.spellUsed[sp.id];
+      b.style.setProperty('--cd', sp.cd && cd > 0 ? cd / sp.cd : 0);
+      b.querySelector('.sp-cdt').textContent = cd > 0 ? Math.ceil(cd) : used ? '✓' : '';
+      b.classList.toggle('used', !!used);
+      b.classList.toggle('nomana', !used && game.mana < sp.cost);
+      b.classList.toggle('ready', game.spellReady(sp.id));
+      b.classList.toggle('active', UI.casting === sp.id);
+    });
+    if (UI.casting && !game.spellReady(UI.casting)) UI.selectSpell(null, true);
+  };
+  // Выбрать заклинание для прицеливания (или сотворить сразу, если цель не нужна).
+  UI.selectSpell = function (id, silent) {
+    const game = UI.game;
+    if (id && UI.casting === id) id = null;
+    if (id && !game.spellReady(id)) {
+      if (!silent) { TD.Sound.play('deny'); UI.banner(TD.SPELL[id].once && game.spellUsed[id] ? 'Уже использовано' : 'Не хватает маны', TD.SPELL[id].name, 1200); }
+      return;
+    }
+    if (id && TD.SPELL[id].target === 'none') { if (game.castSpell(id)) TD.Sound.play('click'); return; }
+    UI.casting = id || null;
+    if (id) { UI.selectPlacing(null); UI.selectTower(null); }
+    $('field').classList.toggle('casting', !!UI.casting);
+  };
+
+  // Баннеры по событиям игры (вызывается до того, как рендер очистит очередь).
+  UI.handleEvents = function (game) {
+    for (const ev of game.events) {
+      if (ev.type === 'wave') {
+        const w = TD.waveDef(ev.n);
+        const n = ch => (w.units.match(new RegExp(ch, 'g')) || []).length;
+        if (w.boss) UI.banner('Босс: Тролль-мусорщик', 'На нём живут гоблины. Не дайте ему дойти до замка!', 3000);
+        else UI.banner(`Волна ${ev.n}`, [`${n('G')} гоблинов`, n('W') && `${n('W')} на лютоволках`, n('S') && `${n('S')} шамана`].filter(Boolean).join(', ') + ' на подходе', 2200);
+      } else if (ev.type === 'waveEnd' && ev.n < TD.WAVES) {
+        UI.banner(`Волна ${ev.n} отбита!`, `+${ev.reward} золота`, 1800);
+      } else if (ev.type === 'early') {
+        UI.banner('Досрочно!', `+${ev.gold} золота за ${ev.sec} с`, 1500);
+      }
+    }
   };
   UI.resetHud = function () { lastGold = -1; lastHp = -1; };
 
@@ -241,6 +322,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
     card.querySelector('.ec-stamp').hidden = !(dead && !e.leaked);
     if (dead && e.leaked) { const s = card.querySelector('.ec-stamp'); s.hidden = false; s.textContent = 'ПРОРВАЛСЯ'; }
     const status = card.querySelector('.ec-status');
+    const extra = [];
+    if (e.slowT > 0) extra.push(`❄️ Скован льдом · ещё <b>${fmt(e.slowT, 1)} с</b>`);
+    if (e.burnT > 0) extra.push(`🔥 Горит · ещё <b>${fmt(e.burnT, 1)} с</b>`);
     if (e.stupor > 0) {
       status.hidden = false;
       status.innerHTML = `💫 В ступоре · очнётся через <b>${fmt(e.stupor, 1)} с</b>`;
@@ -254,6 +338,10 @@ var TD = globalThis.TD || (globalThis.TD = {});
       status.hidden = false;
       status.innerHTML = 'Ярость прошла';
     } else status.hidden = true;
+    if (extra.length) {
+      status.innerHTML = (status.hidden ? '' : status.innerHTML + '<br>') + extra.join('<br>');
+      status.hidden = false;
+    }
     card.querySelector('.ec-hp i').style.width = (e.hp / e.hpMax * 100) + '%';
     card.querySelector('.ec-hp b').textContent = `${fmt(Math.ceil(e.hp))} / ${e.hpMax}`;
   }

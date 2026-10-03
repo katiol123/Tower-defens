@@ -9,6 +9,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   const IMG = {};
   const WHITE = {};
   const RED = {};
+  const BLUE = {};
   TD.loadSprites = function () {
     const jobs = [];
     for (const sp in TD.SPRITES) for (const v of ['front', 'side', 'back']) jobs.push({ sp, v });
@@ -34,6 +35,15 @@ var TD = globalThis.TD || (globalThis.TD = {});
         rx.fillStyle = '#ff2a10';
         rx.fillRect(0, 0, r.width, r.height);
         (RED[sp] = RED[sp] || {})[v] = r;
+        // Голубой силуэт для инея
+        const bl = document.createElement('canvas');
+        bl.width = im.width; bl.height = im.height;
+        const bx = bl.getContext('2d');
+        bx.drawImage(im, 0, 0);
+        bx.globalCompositeOperation = 'source-in';
+        bx.fillStyle = '#9fdcff';
+        bx.fillRect(0, 0, bl.width, bl.height);
+        (BLUE[sp] = BLUE[sp] || {})[v] = bl;
         res();
       };
       im.onerror = res;
@@ -521,6 +531,8 @@ var TD = globalThis.TD || (globalThis.TD = {});
       ctx.restore();
       if (Math.random() < 0.45) spawnFx({ t: 'ember', x: b.cx + (Math.random() - 0.5) * b.W * 0.6, y: b.cy + b.H * (Math.random() * 0.4), vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 40, life: 0.6 });
     }
+    if (e.burnT > 0 && Math.random() < 0.35) spawnFx({ t: 'ember', x: b.cx + (Math.random() - 0.5) * b.W * 0.5, y: b.cy + (Math.random() - 0.2) * b.H * 0.5, vx: (Math.random() - 0.5) * 15, vy: -35 - Math.random() * 30, life: 0.5 });
+    if (e.slowT > 0 && Math.random() < 0.12) spawnFx({ t: 'snow', x: b.cx + (Math.random() - 0.5) * b.W * 0.6, y: b.cy - b.H * 0.3, vx: (Math.random() - 0.5) * 10, vy: 18, life: 0.8 });
     if (!img) return;
     ctx.save();
     ctx.translate(b.cx, b.cy);
@@ -537,6 +549,16 @@ var TD = globalThis.TD || (globalThis.TD = {});
     ctx.drawImage(img, -b.W / 2, -b.H / 2, b.W, b.H);
     if (e.frenzy && RED[e.sprite]) {
       ctx.globalAlpha = 0.18 + Math.sin(o.t * 10 + e.id) * 0.08;
+      ctx.drawImage(RED[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
+      ctx.globalAlpha = 1;
+    }
+    if (e.slowT > 0 && BLUE[e.sprite]) {
+      ctx.globalAlpha = 0.45;
+      ctx.drawImage(BLUE[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
+      ctx.globalAlpha = 1;
+    }
+    if (e.burnT > 0 && RED[e.sprite]) {
+      ctx.globalAlpha = 0.25 + Math.sin(o.t * 20 + e.id) * 0.08;
       ctx.drawImage(RED[e.sprite][e.view], -b.W / 2, -b.H / 2, b.W, b.H);
       ctx.globalAlpha = 1;
     }
@@ -670,6 +692,27 @@ var TD = globalThis.TD || (globalThis.TD = {});
         spawnFx({ t: 'heal', x: ev.e.x, y: ev.e.y, r: ev.r, life: 0.7 });
         for (const h of ev.healed) spawnFx({ t: 'num', x: h.e.x, y: h.e.y - 30, v: h.v, heal: true, life: 0.9 });
         for (let i = 0; i < 8; i++) { const q = Math.random() * TAU, d = Math.random() * ev.r * 0.8; spawnFx({ t: 'spore', x: ev.e.x + Math.cos(q) * d, y: ev.e.y + Math.sin(q) * d * 0.6, vx: 0, vy: -18 - Math.random() * 15, life: 0.9 }); }
+      } else if (ev.type === 'meteorCast') {
+        spawnFx({ t: 'meteorFall', x: ev.x, y: ev.y, r: ev.r, life: ev.delay });
+      } else if (ev.type === 'meteor') {
+        spawnFx({ t: 'scorch', x: ev.x, y: ev.y, r: ev.r, life: 7 });
+        spawnFx({ t: 'flash', x: ev.x, y: ev.y, r: ev.r * 1.2, life: 0.35 });
+        spawnFx({ t: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.1, life: 0.6 });
+        for (let i = 0; i < 30; i++) { const q = Math.random() * TAU, s = 60 + Math.random() * 220; spawnFx({ t: 'spark', x: ev.x, y: ev.y, vx: Math.cos(q) * s, vy: Math.sin(q) * s, life: 0.5, col: i % 3 ? '#ffb454' : '#fff0a0' }); }
+        for (let i = 0; i < 14; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: ev.x + Math.cos(q) * 20, y: ev.y + Math.sin(q) * 14, vx: Math.cos(q) * 40, vy: Math.sin(q) * 25 - 20, life: 1.2, s: 10 + Math.random() * 10 }); }
+        for (let i = 0; i < 10; i++) spawnFx({ t: 'ember', x: ev.x + (Math.random() - 0.5) * ev.r, y: ev.y + (Math.random() - 0.5) * ev.r * 0.6, vx: (Math.random() - 0.5) * 40, vy: -60 - Math.random() * 60, life: 0.9 });
+        ui.shakeT = 0.3;
+      } else if (ev.type === 'frost') {
+        spawnFx({ t: 'frostRing', x: ev.x, y: ev.y, r: ev.r, life: 0.7 });
+        for (let i = 0; i < 26; i++) { const q = Math.random() * TAU, d = Math.random() * ev.r; spawnFx({ t: 'snow', x: ev.x + Math.cos(q) * d, y: ev.y + Math.sin(q) * d * 0.7, vx: Math.cos(q) * 20, vy: -10 - Math.random() * 20, life: 1.0 + Math.random() * 0.6 }); }
+      } else if (ev.type === 'chain') {
+        spawnFx({ t: 'bolt', pts: ev.pts, life: 0.35, seed: Math.random() * 1000 });
+        for (const p of ev.pts) for (let i = 0; i < 6; i++) { const q = Math.random() * TAU; spawnFx({ t: 'spark', x: p.x, y: p.y, vx: Math.cos(q) * 130, vy: Math.sin(q) * 130, life: 0.25, col: '#c8e8ff' }); }
+      } else if (ev.type === 'repair' || ev.type === 'masonry') {
+        const c = game.map.castle;
+        const cx = (c.x + c.w / 2) * T, cy = (c.y + 0.6) * T;
+        if (ev.type === 'repair') spawnFx({ t: 'text', x: cx, y: cy - 30, s: `+${ev.v} ♜`, col: '#9dff8a', life: 1.4, big: true });
+        for (let i = 0; i < 14; i++) { const q = Math.random() * TAU; spawnFx({ t: 'smoke', x: cx + Math.cos(q) * 40, y: cy + 30 + Math.sin(q) * 20, vx: Math.cos(q) * 20, vy: -15, life: 0.8, s: 5 + Math.random() * 5, light: true }); }
       } else if (ev.type === 'kick') {
         const e = ev.e, dir = e.x < ev.troll.x ? -1 : 1;
         spawnFx({ t: 'flyer', x: e.x, y: e.y, noDamp: true, e: { sprite: e.sprite, height: e.height, view: e.view, flip: e.flip, size: e.size, x: e.x, y: e.y, bob: 0 }, vx: dir * (160 + Math.random() * 80), vy: -260 - Math.random() * 80, spin: dir * (10 + Math.random() * 6), life: 1.1 });
@@ -709,6 +752,55 @@ var TD = globalThis.TD || (globalThis.TD = {});
       } else if (f.t === 'smoke') {
         ctx.fillStyle = f.light ? `rgba(230,215,190,${0.45 * (1 - k)})` : `rgba(60,55,50,${0.45 * (1 - k)})`;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.s * (0.6 + k), 0, TAU); ctx.fill();
+      } else if (f.t === 'meteorFall') {
+        // Тень растёт, метеор падает по диагонали сверху справа
+        ctx.fillStyle = `rgba(0,0,0,${0.15 + 0.35 * k})`;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (0.2 + 0.4 * k), f.r * (0.12 + 0.25 * k), 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = `rgba(255,140,60,${0.35 + 0.4 * k})`; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+        const mx = f.x + (1 - k) * 260, my = f.y - (1 - k) * 420;
+        ctx.globalCompositeOperation = 'lighter';
+        const tg = ctx.createLinearGradient(mx, my, mx + 70, my - 110);
+        tg.addColorStop(0, 'rgba(255,200,90,0.9)'); tg.addColorStop(1, 'rgba(255,80,20,0)');
+        ctx.strokeStyle = tg; ctx.lineWidth = 12; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + 70, my - 110); ctx.stroke();
+        const g = ctx.createRadialGradient(mx, my, 0, mx, my, 16);
+        g.addColorStop(0, '#fff3c0'); g.addColorStop(0.5, '#ff9a3c'); g.addColorStop(1, 'rgba(255,60,10,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, 16, 0, TAU); ctx.fill();
+        if (Math.random() < 0.6) spawnFx({ t: 'ember', x: mx + 20, y: my - 30, vx: (Math.random() - 0.5) * 30, vy: -20, life: 0.4 });
+      } else if (f.t === 'scorch') {
+        const a = k < 0.7 ? 0.5 : 0.5 * (1 - (k - 0.7) / 0.3);
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+        g.addColorStop(0, `rgba(30,18,10,${a})`); g.addColorStop(0.7, `rgba(50,30,15,${a * 0.6})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r, f.r * 0.65, 0, 0, TAU); ctx.fill();
+      } else if (f.t === 'frostRing') {
+        ctx.fillStyle = `rgba(170,225,255,${0.3 * (1 - k)})`;
+        ctx.strokeStyle = `rgba(210,240,255,${0.9 * (1 - k)})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (0.3 + 0.7 * Math.sqrt(k)), f.r * (0.3 + 0.7 * Math.sqrt(k)) * 0.7, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        for (let i = 0; i < 8; i++) {
+          const q = i / 8 * TAU, rr2 = f.r * (0.3 + 0.7 * Math.sqrt(k));
+          ctx.beginPath(); ctx.moveTo(f.x + Math.cos(q) * rr2 * 0.6, f.y + Math.sin(q) * rr2 * 0.42); ctx.lineTo(f.x + Math.cos(q) * rr2, f.y + Math.sin(q) * rr2 * 0.7); ctx.stroke();
+        }
+      } else if (f.t === 'snow') {
+        ctx.fillStyle = `rgba(230,248,255,${1 - k})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 2, 0, TAU); ctx.fill();
+      } else if (f.t === 'bolt') {
+        // Ломаная молния между целями, мерцает
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [w, col] of [[7, `rgba(120,180,255,${0.35 * (1 - k)})`], [2.5, `rgba(235,245,255,${1 - k})`]]) {
+          ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineJoin = 'round';
+          ctx.beginPath();
+          const r2 = TD.makeRng((f.seed + Math.floor(f.age * 30)) | 0);
+          f.pts.forEach((p, i) => {
+            if (!i) { ctx.moveTo(p.x, p.y - 200); ctx.lineTo(p.x, p.y); return; }
+            const a = f.pts[i - 1];
+            for (let s = 1; s <= 6; s++) {
+              const tt = s / 6, j = s < 6 ? (r2() - 0.5) * 18 : 0;
+              ctx.lineTo(a.x + (p.x - a.x) * tt + j, a.y + (p.y - a.y) * tt + j * 0.6);
+            }
+          });
+          ctx.stroke();
+        }
       } else if (f.t === 'heal') {
         ctx.strokeStyle = `rgba(140,255,120,${0.7 * (1 - k)})`; ctx.lineWidth = 2.5;
         ctx.fillStyle = `rgba(120,255,110,${0.12 * (1 - k)})`;
@@ -781,7 +873,9 @@ var TD = globalThis.TD || (globalThis.TD = {});
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#0f0c09';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
+    const sh = ui.shakeT > 0 ? ui.shakeT * 14 : 0;
+    if (ui.shakeT > 0) ui.shakeT = Math.max(0, ui.shakeT - dt);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, (ox + (Math.random() - 0.5) * sh) * dpr, (oy + (Math.random() - 0.5) * sh) * dpr);
     ctx.save();
     ctx.beginPath(); ctx.rect(0, 0, TD.W, TD.H); ctx.clip();
     if (ui.bg) ctx.drawImage(ui.bg, 0, 0, TD.W, TD.H);
@@ -813,6 +907,32 @@ var TD = globalThis.TD || (globalThis.TD = {});
 
     for (const p of game.projectiles) drawProjectile(ctx, p);
     drawFx(ctx, dt);
+
+    // Прицел заклинания
+    if (ui.casting && ui.hover) {
+      const sp = TD.SPELL[ui.casting], { x, y } = ui.hover;
+      ctx.save();
+      if (sp.radius) {
+        const R = sp.radius * T;
+        const col = sp.id === 'frost' ? '160,220,255' : '255,150,70';
+        ctx.fillStyle = `rgba(${col},0.14)`; ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]); ctx.lineDashOffset = -t * 30;
+        ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sp.icon, x, y);
+      } else if (sp.id === 'chain') {
+        const e = game.enemyNear(x, y, T * 1.2);
+        if (e) {
+          const b = TD.enemyBox(e);
+          ctx.strokeStyle = 'rgba(190,225,255,0.95)'; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.ellipse(b.cx, e.y + 13 * e.size, b.W * 0.45, 8 * e.size, 0, 0, TAU); ctx.stroke();
+          ctx.strokeStyle = 'rgba(190,225,255,0.25)'; ctx.setLineDash([4, 6]);
+          ctx.beginPath(); ctx.arc(b.cx, b.cy, TD.SPELL.chain.jumpRange * T, 0, TAU); ctx.stroke();
+        }
+        ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', x + 14, y - 14);
+      }
+      ctx.restore();
+    }
 
     // Призрак размещаемой вышки
     if (ui.placing && ui.hover) {

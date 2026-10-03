@@ -106,13 +106,20 @@ var TD = globalThis.TD || (globalThis.TD = {});
     kick() { tone('sine', 140, 60, 0.15, 0.6); noise(0.08, 0.3, 'lowpass', 1500, 300); tone('triangle', 500, 1400, 0.35, 0.12, { delay: 0.05 }); },
     stupor() { tone('sawtooth', 220, 110, 0.9, 0.1, { lp: 700, attack: 0.05 }); tone('sine', 880, 870, 0.5, 0.05, { delay: 0.15 }); tone('sine', 1100, 1090, 0.5, 0.04, { delay: 0.3 }); },
     roar() { tone('sawtooth', 110, 55, 1.2, 0.3, { lp: 600, attack: 0.08 }); noise(1.0, 0.35, 'lowpass', 500, 120, { attack: 0.08 }); tone('sine', 50, 35, 1.2, 0.6, { attack: 0.05 }); },
+    // Заклинания
+    meteorCast() { noise(1.0, 0.25, 'bandpass', 300, 2500, { q: 0.8, attack: 0.3 }); tone('sawtooth', 160, 60, 1.0, 0.06, { lp: 900, attack: 0.3 }); },
+    meteor() { tone('sine', 70, 25, 1.0, 1.0); noise(1.1, 0.8, 'lowpass', 2600, 90); noise(0.2, 0.35, 'highpass', 2500); },
+    frost() { [1568, 2093, 2637, 3136].forEach((f, i) => tone('triangle', f, f * 0.98, 0.5, 0.06, { delay: i * 0.05 })); noise(0.5, 0.18, 'highpass', 5000, 3000); },
+    chain() { for (let i = 0; i < 4; i++) noise(0.08, 0.35, 'bandpass', 2500 + Math.random() * 2000, 1200, { q: 3, delay: i * 0.05 }); tone('sawtooth', 900, 120, 0.3, 0.12, { lp: 3000 }); },
+    repair() { for (let i = 0; i < 3; i++) { noise(0.05, 0.3, 'bandpass', 1800, 900, { q: 4, delay: i * 0.13 }); tone('square', 520, 480, 0.05, 0.05, { lp: 2000, delay: i * 0.13 }); } },
+    early() { [784, 988, 1175, 1568].forEach((f, i) => tone('sine', f, f, 0.12, 0.1, { delay: i * 0.05 })); },
     calm() { tone('triangle', 330, 165, 0.6, 0.12, { attack: 0.05 }); },
     dismount() { tone('sawtooth', 520, 880, 0.35, 0.09, { lp: 1600, attack: 0.08 }); tone('sawtooth', 880, 380, 0.7, 0.09, { lp: 1400, delay: 0.35 }); },
     click() { tone('sine', 900, 700, 0.04, 0.08); },
     whoosh() { noise(0.25, 0.14, 'bandpass', 500, 2200, { q: 1.2 }); },
     deny() { tone('square', 220, 180, 0.12, 0.07, { lp: 1200 }); tone('square', 165, 140, 0.16, 0.07, { lp: 1200, delay: 0.1 }); },
   };
-  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000 };
+  const GAP = { bolt: 45, shell: 80, lance: 60, explode: 70, hit: 35, death: 60, coin: 70, castle: 150, build: 100, sell: 100, dismount: 200, spores: 250, calm: 200, nest: 300, kick: 80, stupor: 500, roar: 1000, meteor: 100, repair: 300 };
 
   function play(name) {
     if (!ready() || !SFX[name]) return;
@@ -164,6 +171,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
           case 'spores': play('spores'); break;
           case 'calm': play('calm'); break;
           case 'nest': play('nest'); break;
+          case 'meteorCast': play('meteorCast'); break;
+          case 'meteor': play('meteor'); break;
+          case 'frost': play('frost'); break;
+          case 'chain': play('chain'); break;
+          case 'repair': case 'masonry': play('repair'); break;
+          case 'early': play('early'); break;
           case 'kick': play('kick'); break;
           case 'stupor': play('stupor'); break;
           case 'spawn': if (ev.e.boss) play('roar'); break;

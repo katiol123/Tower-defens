@@ -122,6 +122,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
   function speedMult(e) {
     let m = 1;
     if (negActive(e, 'coward') && e.hp < e.hpMax / 2) m *= 0.7;
+    if (e.slowT > 0 && !TD.isImmune(e)) m *= 1 - TD.SPELL.frost.slow;
     if (e.stupor > 0) m = 0;
     return m;
   }
@@ -170,6 +171,12 @@ var TD = globalThis.TD || (globalThis.TD = {});
     this.time = 0;
     this.countdown = 0;
     this.stats = { kills: 0, leaked: 0 };
+    this.mana = TD.MANA.start;
+    this.spellCd = {};
+    this.spellUsed = {};
+    this.meteors = [];
+    this.masonry = null;
+    this.waveInfo = {};   // по номеру волны: { spawning, rewarded }
     this.onShot = null;     // (projectile, outcome) — используется тестами
   };
 
@@ -214,10 +221,23 @@ var TD = globalThis.TD || (globalThis.TD = {});
     return e;
   };
 
-  G.startWave = function () {
-    if (this.phase === 'won' || this.phase === 'lost') return;
-    if (this.phase === 'wave' && this.spawnQueue.length) return;
+  // Можно ли запустить следующую волну сейчас (до первой волны или во время отсчёта).
+  G.canStartWave = function () {
+    if (this.phase === 'won' || this.phase === 'lost' || this.wave >= TD.WAVES) return false;
+    return this.phase === 'build' || (this.countdown > 0 && !this.spawnQueue.length);
+  };
+  // Золото за досрочный запуск: 15 за каждую сброшенную (оставшуюся) секунду отсчёта.
+  G.earlyBonus = function () { return this.countdown > 0 ? Math.ceil(this.countdown - 1e-9) * TD.EARLY_GOLD_PER_SEC : 0; };
+
+  // Запуск следующей волны. auto — по окончании отсчёта (без бонуса),
+  // иначе это кнопка: до первой волны или досрочно во время отсчёта (с бонусом).
+  G.startWave = function (auto) {
+    if (!auto && !this.canStartWave()) return;
+    if (this.wave >= TD.WAVES || this.phase === 'won' || this.phase === 'lost') return;
+    const bonus = auto ? 0 : this.earlyBonus();
+    if (bonus > 0) { this.gold += bonus; this.emit({ type: 'early', gold: bonus, sec: bonus / TD.EARLY_GOLD_PER_SEC }); }
     this.wave++;
+    this.waveInfo[this.wave] = { spawning: true, rewarded: false };
     const w = TD.waveDef(this.wave);
     // Босс всегда идёт по самой длинной дорожке.
     const longest = this.map.paths.reduce((best, p) => p.route.length > this.map.paths[best].route.length ? p.id : best, 0);
@@ -225,7 +245,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
     for (let i = 0; i < w.count; i++) {
       const type = TD.WAVE_UNIT[w.units[i]];
       const path = TD.UNITS[type].boss ? longest : i % this.map.paths.length;
-      this.spawnQueue.push({ at: t, path, type });
+      this.spawnQueue.push({ at: t, path, type, wave: this.wave });
       t += w.gap * (0.8 + this.rng() * 0.4);
     }
     this.phase = 'wave';
@@ -297,12 +317,13 @@ var TD = globalThis.TD || (globalThis.TD = {});
       this.gold += e.reward;
       this.stats.kills++;
       if (tower) tower.kills++;
+      this.mana = Math.min(TD.MANA.max, this.mana + TD.MANA.perKill);
       this.emit({ type: 'death', e, gold: e.reward });
       // «Последний рывок волка»: с шансом 30% наездник остаётся жив с 50% здоровья.
       if (e.perks.includes('dismount') && this.rng() < 0.3) {
         const g = TD.createUnit('goblin', this.rng, { name: e.name, kind: 'Гоблин (спешенный наездник)' });
         g.hp = g.hpMax * 0.5;
-        g.pathId = e.pathId; g.route = e.route; g.dist = e.dist;
+        g.pathId = e.pathId; g.route = e.route; g.dist = e.dist; g.wave = e.wave;
         placeEnemy(g);
         this.pending.push(g);
         this.emit({ type: 'dismount', e, g });
@@ -337,6 +358,7 @@ var TD = globalThis.TD || (globalThis.TD = {});
       g.jumpT = g.jumpDur = 0.45 + this.rng() * 0.2;
       g.jumpH = 26 + this.rng() * 16;
       g.kickChecked = false;
+      g.wave = troll.wave;
       g.fromX = troll.x; g.fromY = troll.y - troll.height * troll.size * 0.55;
       placeEnemy(g);
       this.pending.push(g);
@@ -357,6 +379,111 @@ var TD = globalThis.TD || (globalThis.TD = {});
         g.alive = false; g.kicked = true;
         this.stats.kicked = (this.stats.kicked || 0) + 1;
         this.emit({ type: 'kick', e: g, troll: tr });
+      }
+    }
+  };
+
+  // ---------------- Заклинания ----------------
+  // Можно ли сотворить: хватает маны, нет перезарядки, одноразовое ещё не использовано.
+  G.spellReady = function (id) {
+    const sp = TD.SPELL[id];
+    if (this.phase === 'won' || this.phase === 'lost') return false;
+    if (sp.once && this.spellUsed[id]) return false;
+    return this.mana >= sp.cost && !(this.spellCd[id] > 0);
+  };
+
+  // Сотворить заклинание в точке (x, y) мира. Возвращает true, если получилось.
+  G.castSpell = function (id, x, y) {
+    if (!this.spellReady(id)) return false;
+    const sp = TD.SPELL[id];
+    if (id === 'chain') {
+      const first = this.enemyNear(x, y, T() * 1.2);
+      if (!first) return false;
+      this.chainLightning(first);
+    } else if (id === 'meteor') {
+      this.meteors.push({ x, y, t: sp.delay });
+      this.emit({ type: 'meteorCast', x, y, delay: sp.delay, r: sp.radius * T() });
+    } else if (id === 'frost') {
+      const R = sp.radius * T();
+      const hit = [];
+      for (const e of this.enemies) {
+        if (!e.alive || !TD.hitTest(e, x, y, R)) continue;
+        if (TD.isImmune(e)) continue;           // иммунитет к негативным эффектам
+        e.slowT = sp.dur;
+        hit.push(e);
+      }
+      this.emit({ type: 'frost', x, y, r: R, hit });
+    } else if (id === 'masonry') {
+      this.masonry = { left: sp.ticks, t: sp.every };
+      this.emit({ type: 'masonry' });
+    }
+    this.mana -= sp.cost;
+    if (sp.cd) this.spellCd[id] = sp.cd;
+    if (sp.once) this.spellUsed[id] = true;
+    this.emit({ type: 'cast', id });
+    return true;
+  };
+
+  // Ближайший к точке живой враг (попадание курсором в спрайт — в приоритете).
+  G.enemyNear = function (x, y, maxR) {
+    let best = null, bd = Infinity;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      if (TD.hitTest(e, x, y, 2)) return e;
+      const b = TD.enemyBox(e);
+      const d = Math.hypot(b.cx - x, b.cy - y);
+      if (d < bd && d <= maxR) { bd = d; best = e; }
+    }
+    return best;
+  };
+
+  G.chainLightning = function (first) {
+    const sp = TD.SPELL.chain;
+    const hitSet = new Set([first.id]);
+    const chain = [first];
+    let cur = first;
+    for (let j = 0; j < sp.jumps; j++) {
+      const cb = TD.enemyBox(cur);
+      let next = null, nd = Infinity;
+      for (const e of this.enemies) {
+        if (!e.alive || hitSet.has(e.id)) continue;
+        const b = TD.enemyBox(e);
+        const d = Math.hypot(b.cx - cb.cx, b.cy - cb.cy);
+        if (d <= sp.jumpRange * T() && d < nd) { nd = d; next = e; }
+      }
+      if (!next) break;
+      hitSet.add(next.id); chain.push(next); cur = next;
+    }
+    const pts = chain.map(e => { const b = TD.enemyBox(e); return { x: b.cx, y: b.cy }; });
+    chain.forEach((e, i) => this.damage(e, sp.dmg * Math.pow(1 - sp.falloff, i), null, false));
+    this.emit({ type: 'chain', pts });
+  };
+
+  G.updateSpells = function (dt) {
+    for (const id in this.spellCd) this.spellCd[id] = Math.max(0, this.spellCd[id] - dt);
+    for (const m of this.meteors) {
+      m.t -= dt;
+      if (m.t > 0) continue;
+      const sp = TD.SPELL.meteor, R = sp.radius * T();
+      // Взрыв задевает врага, если круг взрыва касается непрозрачных пикселей его спрайта.
+      for (const e of this.enemies) {
+        if (!e.alive || !TD.hitTest(e, m.x, m.y, R)) continue;
+        this.damage(e, sp.dmg, null, true);
+        if (e.alive) { e.burnT = sp.burn.dur; e.burnAcc = 0; }
+      }
+      this.emit({ type: 'meteor', x: m.x, y: m.y, r: R });
+    }
+    this.meteors = this.meteors.filter(m => m.t > 0);
+    if (this.masonry) {
+      this.masonry.t -= dt;
+      if (this.masonry.t <= 0) {
+        const sp = TD.SPELL.masonry;
+        this.masonry.t += sp.every;
+        this.masonry.left--;
+        const before = this.castleHp;
+        this.castleHp = Math.min(TD.CASTLE_HP, this.castleHp + sp.heal);
+        this.emit({ type: 'repair', v: this.castleHp - before });
+        if (this.masonry.left <= 0) this.masonry = null;
       }
     }
   };
@@ -459,8 +586,18 @@ var TD = globalThis.TD || (globalThis.TD = {});
     // Появление врагов
     while (this.spawnQueue.length && this.spawnQueue[0].at <= this.time) {
       const s = this.spawnQueue.shift();
-      this.spawnEnemy(TD.createUnit(s.type, this.rng), s.path);
+      const e = TD.createUnit(s.type, this.rng);
+      e.wave = s.wave;
+      this.spawnEnemy(e, s.path);
+      if (!this.spawnQueue.length) {
+        this.waveInfo[s.wave].spawning = false;
+        // Следующая волна — через 10 с после выхода последнего врага этой.
+        if (this.wave < TD.WAVES) this.countdown = TD.NEXT_WAVE_DELAY;
+      }
     }
+    // Мана копится постоянно.
+    this.mana = Math.min(TD.MANA.max, this.mana + TD.MANA.regen * dt);
+    this.updateSpells(dt);
     // Движение врагов
     for (const e of this.enemies) {
       if (!e.alive) continue;
@@ -471,6 +608,14 @@ var TD = globalThis.TD || (globalThis.TD = {});
         if (e.calmT >= TD.FRENZY.calm) { setFrenzy(e, false); this.emit({ type: 'calm', e }); }
       }
       if (e.jumpT > 0) e.jumpT = Math.max(0, e.jumpT - dt);
+      if (e.slowT > 0) e.slowT = Math.max(0, e.slowT - dt);
+      if (e.burnT > 0) {
+        // Поджог от метеора: урон тиками по 0,5 с.
+        e.burnT = Math.max(0, e.burnT - dt);
+        e.burnAcc = (e.burnAcc || 0) + dt;
+        while (e.burnAcc >= 0.5 && e.alive) { e.burnAcc -= 0.5; this.damage(e, TD.SPELL.meteor.burn.dps * 0.5, null, true); }
+        if (!e.alive) continue;
+      }
       if (e.dumbT !== undefined) {
         // «Тупоголовый»: проверка раз в 5 с, пока не в ступоре.
         if (e.stupor > 0) {
@@ -511,16 +656,22 @@ var TD = globalThis.TD || (globalThis.TD = {});
     if (this.pending.length) { this.enemies.push(...this.pending); this.pending.length = 0; }
 
     if (this.castleHp <= 0 && this.phase !== 'lost') { this.phase = 'lost'; this.emit({ type: 'lost' }); return; }
-    if (this.phase === 'wave' && !this.spawnQueue.length && !this.enemies.length) {
-      const w = TD.waveDef(this.wave);
+    // Волна отбита, когда все её враги (и спрыгнувшие/спешенные) повержены или прошли.
+    for (const n in this.waveInfo) {
+      const wi = this.waveInfo[n];
+      if (wi.rewarded || wi.spawning) continue;
+      if (this.enemies.some(e => e.wave === +n)) continue;
+      wi.rewarded = true;
+      const w = TD.waveDef(+n);
       this.gold += w.reward;
-      this.emit({ type: 'waveEnd', n: this.wave, reward: w.reward });
-      if (this.wave >= TD.WAVES) { this.phase = 'won'; this.emit({ type: 'won' }); }
-      else { this.phase = 'build'; this.countdown = 20; }
+      this.emit({ type: 'waveEnd', n: +n, reward: w.reward });
     }
-    if (this.phase === 'build' && this.countdown > 0) {
+    if (this.wave >= TD.WAVES && !this.spawnQueue.length && !this.enemies.length) {
+      this.phase = 'won'; this.emit({ type: 'won' }); return;
+    }
+    if (this.countdown > 0) {
       this.countdown -= dt;
-      if (this.countdown <= 0) this.startWave();
+      if (this.countdown <= 0) { this.countdown = 0; this.startWave(true); }
     }
   };
 })();
